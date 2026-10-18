@@ -1,0 +1,2449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Robo Runner</title>
+<style>
+  :root { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #120f33; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; -webkit-user-select: none; user-select: none; }
+  [hidden] { display: none !important; }
+  #ed-ui { position: fixed; top: 0; left: 0; right: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+    padding: 6px 8px; background: #0d0b28; border-bottom: 1px solid #3a3590; font: 12px "Courier New", monospace; color: #e9e6ff; }
+  #ed-ui .row { display: contents; }
+  #ed-ui *, #ed-modal * { box-sizing: border-box; }
+  #ed-ui button, #ed-ui input, #ed-ui select, #ed-modal button, #ed-modal textarea {
+    font: inherit; color: #e9e6ff; background: #1e1b55; border: 1px solid #3a3590; border-radius: 4px; padding: 3px 7px; height: 30px; }
+  #ed-modal textarea { height: auto; }
+  #ed-ui button { cursor: pointer; }
+  #ed-ui button:hover { border-color: #8e9bff; }
+  #ed-ui button.tool { min-width: 32px; padding: 3px 5px; font-weight: bold; }
+  #ed-ui button.on { background: #2a2670; border-color: #35e6c8; color: #35e6c8; }
+  #ed-ui button.go { border-color: #35e6c8; color: #35e6c8; }
+  #ed-ui .sep { width: 1px; height: 22px; background: #3a3590; margin: 0 3px; }
+  #ed-name { width: 120px; } #ed-cols { width: 58px; } #ed-load { max-width: 120px; }
+  #ed-status { color: #9a96d8; margin-left: 4px; }
+  #ed-saved { color: #5f8f86; margin-left: 4px; }
+  #ed-modal { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: rgba(10,8,30,0.85);
+    font: 12px "Courier New", monospace; color: #e9e6ff; }
+  #ed-modal .box { display: flex; flex-direction: column; gap: 8px; width: min(92vw, 720px); padding: 14px; background: #120f33; border: 1px solid #3a3590; border-radius: 6px; }
+  #ed-modal textarea { height: min(55vh, 420px); white-space: pre; resize: vertical; }
+  #mu-modal { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: rgba(10,8,30,0.85); font: 12px/1.5 "Courier New", monospace; color: #c9c5f0; }
+  #mu-modal .box { display: flex; flex-direction: column; gap: 10px; width: min(92vw, 520px); padding: 16px; background: #120f33; border: 1px solid #3a3590; border-radius: 6px; }
+  #mu-modal b { color: #ffb36b; }
+  #mu-modal .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #mu-modal button, #mu-modal input { font: inherit; color: #e9e6ff; background: #1e1b55; border: 1px solid #3a3590; border-radius: 4px; padding: 5px 9px; }
+  #mu-modal button { cursor: pointer; } #mu-modal button:hover { border-color: #8e9bff; }
+  #mu-modal input { width: 64px; }
+  #mu-modal audio { width: 100%; height: 34px; }
+  #mu-name { color: #e9e6ff; font-weight: bold; }
+  #mu-status { color: #9a96d8; }
+  #ed-music.on { color: #ffb36b; border-color: #ffb36b; }
+  #pub-modal { position: fixed; inset: 0; z-index: 3; display: flex; align-items: center; justify-content: center; background: rgba(10,8,30,0.85); font: 12px/1.5 "Courier New", monospace; color: #c9c5f0; }
+  #pub-modal .box { display: flex; flex-direction: column; gap: 12px; width: min(92vw, 480px); padding: 18px; background: #120f33; border: 1px solid #3a3590; border-radius: 8px; }
+  #pub-modal b { color: #8e9bff; font-size: 15px; }
+  #pub-modal .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #pub-modal button, #pub-modal input { font: inherit; color: #e9e6ff; background: #1e1b55; border: 1px solid #3a3590; border-radius: 4px; padding: 6px 10px; }
+  #pub-modal button { cursor: pointer; } #pub-modal button:hover { border-color: #8e9bff; }
+  #pub-modal button.go { color: #120f33; background: #8e9bff; border-color: #8e9bff; font-weight: bold; }
+  #pub-modal button:disabled { opacity: 0.5; cursor: default; }
+  #pub-modal input { width: 100%; box-sizing: border-box; margin-top: 4px; font-size: 14px; }
+  #pub-status { color: #ff8a9e; }
+  #ol-search { position: fixed; z-index: 2; height: 34px; box-sizing: border-box; padding: 0 10px; font: 13px "Courier New", monospace; color: #e9e6ff;
+    background: #1e1b55; border: 1.5px solid #3a3590; border-radius: 6px; outline: none; }
+  #ol-search:focus { border-color: #8e9bff; }
+  #ol-search::placeholder { color: #6f6bb0; }
+  #ed-modal .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  /* editor guide: docked on the right of My Levels, or a pop-up from the editor */
+  #guide-wrap { position: fixed; inset: 0; z-index: 4; pointer-events: none; font: 12px/1.5 "Courier New", monospace; color: #e9e6ff; }
+  #guide-wrap.modal { pointer-events: auto; background: rgba(10,8,30,0.85); display: flex; align-items: center; justify-content: center; }
+  #guide { pointer-events: auto; box-sizing: border-box; overflow-y: auto; background: #17143f; border: 1px solid #3a3590; border-radius: 10px; padding: 14px 16px; }
+  #guide-wrap.dock #guide { position: absolute; right: 16px; top: calc(50% + 32px); transform: translateY(-50%); width: min(360px, 36vw); max-height: calc(100% - 96px); }
+  #guide-wrap.modal #guide { width: min(560px, 92vw); max-height: 86vh; }
+  #guide h2 { margin: 0 0 2px; font-size: 16px; color: #ffb36b; letter-spacing: 1px; }
+  #guide h3 { margin: 12px 0 4px; font-size: 12px; color: #9a96d8; text-transform: uppercase; letter-spacing: 1px; }
+  #guide p { margin: 0 0 4px; color: #c9c5f0; }
+  #guide table { border-collapse: collapse; width: 100%; }
+  #guide td { padding: 3px 0; vertical-align: top; color: #c9c5f0; }
+  #guide td:first-child { width: 30px; text-align: center; font-weight: bold; color: #e9e6ff; }
+  #guide td b { color: #e9e6ff; }
+  #guide kbd { font: inherit; font-size: 11px; color: #35e6c8; border: 1px solid #3a3590; border-radius: 3px; padding: 0 3px; }
+  #guide .close { float: right; font: inherit; color: #e9e6ff; background: #1e1b55; border: 1px solid #3a3590; border-radius: 4px; padding: 3px 9px; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ed-ui" hidden>
+  <div class="row" id="ed-tools"></div>
+  <div class="row">
+    <span class="sep"></span>
+    <input id="ed-name" placeholder="level name" aria-label="Level name">
+    <select id="ed-mode" aria-label="Start mode"><option value="flip">start: flip</option><option value="wave">start: wave</option><option value="robot">start: robot</option></select>
+    <label>length <input id="ed-cols" type="number" min="30" max="500" aria-label="Level length"></label>
+    <span class="sep"></span>
+    <button class="go" data-act="test">&#9654; test</button>
+    <button class="go" data-act="testHere" title="start the test at the left edge of the view">&#9654; from here</button>
+    <button data-act="check" title="search every input timing to see if the level can be beaten">check</button>
+    <span class="sep"></span>
+    <button data-act="rotL" title="rotate left [Q]: the spike/slope brush, or the selection">&#10226;</button>
+    <button data-act="rotR" title="rotate right [E]: the spike/slope brush, or the selection">&#10227;</button>
+    <span id="ed-selbtns" class="row" hidden>
+      <button data-act="copy" title="copy selection [Ctrl+C]">copy</button>
+      <button data-act="paste" title="paste at the cursor [Ctrl+V]">paste</button>
+      <button data-act="dup" title="duplicate to the right [Ctrl+D]">dup</button>
+      <button data-act="delsel" title="delete selection [Delete]">del</button>
+    </span>
+    <span class="sep"></span>
+    <button data-act="undo" title="undo [Ctrl+Z]">undo</button>
+    <button data-act="redo" title="redo [Ctrl+Y or Ctrl+Shift+Z]">redo</button>
+    <button data-act="save" title="save [Ctrl+S]">save</button>
+    <select id="ed-load" aria-label="Copy a built-in level in"></select>
+    <button data-act="json">json</button>
+    <button data-act="music" id="ed-music" title="level music (mp3)">&#9835; music</button>
+    <button data-act="guide" title="editor guide [H]">guide</button>
+    <button data-act="menu" class="go">done</button>
+    <span id="ed-saved"></span>
+    <span id="ed-status"></span>
+  </div>
+</div>
+<div id="guide-wrap" hidden>
+  <div id="guide" role="dialog" aria-label="Editor guide">
+    <button class="close" data-guide="close">close</button>
+    <h2>EDITOR GUIDE</h2>
+    <p>Pick a tool, then click or drag on the grid. Your level saves as you go (unless auto-save is off in Settings).</p>
+    <h3>Objects</h3>
+    <table>
+      <tr><td>&#9632;</td><td><b>Block</b> <kbd>3</kbd> solid ground. Running into its side kills you.</td></tr>
+      <tr><td style="color:#ff5470">&#9650;</td><td><b>Spike</b> <kbd>4</kbd> kills on touch. <kbd>Q</kbd>/<kbd>E</kbd> turn it.</td></tr>
+      <tr><td>&#9698;</td><td><b>Slope</b> <kbd>5</kbd> a ramp for flip and robot; deadly for the wave. <kbd>Q</kbd>/<kbd>E</kbd> turn it.</td></tr>
+      <tr><td style="color:#ffd23f">&#9679;</td><td><b>Yellow orb</b> <kbd>O</kbd> tap while touching it in mid-air for a small jump (flip, robot).</td></tr>
+      <tr><td style="color:#4fb8ff">&#9679;</td><td><b>Blue orb</b> <kbd>P</kbd> tap while touching it in mid-air to flip gravity (flip, robot).</td></tr>
+      <tr><td>&#9003;</td><td><b>Erase</b> <kbd>6</kbd> removes anything, including a whole portal column.</td></tr>
+    </table>
+    <h3>Portals (fill a whole column)</h3>
+    <table>
+      <tr><td style="color:#35e6c8">F</td><td><b>Flip</b> <kbd>7</kbd> tap to flip gravity.</td></tr>
+      <tr><td style="color:#ff8ad8">W</td><td><b>Wave</b> <kbd>8</kbd> hold to rise. The row you click is where the wave enters.</td></tr>
+      <tr><td style="color:#ffb36b">R</td><td><b>Robot</b> <kbd>9</kbd> tap to hop, hold to jump higher.</td></tr>
+      <tr><td style="color:#9dff6b">m</td><td><b>Mini</b> <kbd>[</kbd> / <b style="color:#6bc8ff">norm</b> <kbd>]</kbd> shrink or restore the wave. Ignored by flip and robot.</td></tr>
+    </table>
+    <h3>Start, checkpoints, goal</h3>
+    <p><b>S</b> <kbd>0</kbd> sets the start. <b>&#9873;</b> <kbd>-</kbd> adds a checkpoint; click its column again to remove it. <b>G</b> <kbd>=</kbd> moves the goal.</p>
+    <h3>Selecting</h3>
+    <p>&#11034; <kbd>2</kbd> click an object or drag a box (<kbd>Shift</kbd> adds). Drag the selection to move it. <kbd>Q</kbd>/<kbd>E</kbd> rotate, <kbd>Del</kbd> deletes, <kbd>Ctrl+C</kbd>/<kbd>V</kbd>/<kbd>D</kbd> copy, paste, duplicate, <kbd>Ctrl+A</kbd> selects all, <kbd>Esc</kbd> clears.</p>
+    <h3>Moving around &amp; testing</h3>
+    <p>&#9995; <kbd>1</kbd>, right-drag, the scroll wheel or the arrow keys pan the view. <b>test</b> <kbd>T</kbd> plays the level; <b>from here</b> starts at the left of the view; <b>check</b> tells you if the level can be beaten and marks where it can't.</p>
+    <p><kbd>Ctrl+Z</kbd> undo, <kbd>Ctrl+Y</kbd> redo, <kbd>Ctrl+S</kbd> save.</p>
+    <p>If you die upside down as flip or robot, you come back on the ceiling at the checkpoint.</p>
+    <h3>Music</h3>
+    <p><b>&#9835; music</b> picks an MP3 for the level. It starts with the level, and after a checkpoint it picks up where the song would be. <b>start at</b> skips the song's intro. The song is kept in this browser; the level JSON only stores its file name.</p>
+    <h3>Sharing</h3>
+    <p><b>json</b> copies or downloads the level. Use <b>import</b> on My Levels to load one. The format is the same as levels.json, so it also loads in Unity.</p>
+  </div>
+</div>
+<input id="ol-search" type="search" placeholder="search names" maxlength="40" aria-label="Search online levels by name" autocomplete="off" hidden>
+<div id="pub-modal" hidden>
+  <div class="box">
+    <div><b id="pub-title">Publish</b></div>
+    <div id="pub-info"></div>
+    <label>creator name <input id="pub-creator" maxlength="24" placeholder="your name" aria-label="Creator name"></label>
+    <div class="row">
+      <button data-pact="go" id="pub-go" class="go">publish</button>
+      <button data-pact="close">cancel</button>
+      <span id="pub-status"></span>
+    </div>
+  </div>
+</div>
+<div id="mu-modal" hidden>
+  <div class="box">
+    <div><b>Level music</b>. Pick an MP3 (or any audio file your browser plays). It plays from the start of the level, and after a checkpoint it picks up where the song would be at that point.</div>
+    <div id="mu-name"></div>
+    <audio id="mu-prev" controls preload="metadata"></audio>
+    <div class="row">
+      <button data-uact="file">upload mp3&hellip;</button>
+      <input id="mu-file" type="file" accept=".mp3,audio/mpeg,audio/*" hidden>
+      <label>start at <input id="mu-off" type="number" min="0" step="0.1" value="0" aria-label="Music start time in seconds"> s</label>
+      <button data-uact="remove">remove</button>
+      <button data-uact="close">close</button>
+      <span id="mu-status"></span>
+    </div>
+  </div>
+</div>
+<div id="ed-modal" hidden>
+  <div class="box">
+    <div>Level JSON (the levels.json schema, so Unity can load it). Paste a level or a whole levels.json and press load to add it to My levels.</div>
+    <textarea id="ed-json" spellcheck="false" aria-label="Level JSON"></textarea>
+    <div class="row">
+      <button data-mact="load">load</button>
+      <button data-mact="copy">copy</button>
+      <button data-mact="download">download</button>
+      <button data-mact="file">open file&hellip;</button>
+      <input id="ed-file" type="file" accept=".json,application/json" hidden>
+      <button data-mact="close">close</button>
+      <span id="ed-mstatus"></span>
+    </div>
+  </div>
+</div>
+<!--
+  ============================== UNITY PORT NOTES ==============================
+  The file is split into three layers so each maps onto one Unity piece:
+
+  1. LEVEL DATA  (<script id="level-data">)  -> TextAsset / ScriptableObject
+     Pure JSON, no code. Each level is a list of build ops (block, spikes, gap,
+     zigzag, portal). A compiled tile grid of every level is also exported as
+     levels.json (rows as strings, legend ".#^vFWRMN<>abcdyu"), which loads directly with
+     JsonUtility and can be painted onto a Tilemap.
+
+  2. SIM  (between SIM-BEGIN / SIM-END)  -> plain C# classes + FixedUpdate
+     No DOM, no canvas, no clock. Everything is in TILE units (1 tile = 1 Unity
+     unit) and advances only through step(sim, input) at CONFIG.dt.
+     Set Time.fixedDeltaTime = CONFIG.dt and call Step() from FixedUpdate.
+     Input is {down, pressed}: held state + "pressed since last step" edge.
+     Coordinates are y-DOWN (row 0 = top). In Unity (y-up):
+        unityY = CONFIG.rows - y        (for a point)
+     Collision is axis-aligned boxes vs the tile grid, so it can stay custom
+     (deterministic, matches this prototype) instead of using Rigidbody2D.
+
+  3. SHELL  (everything after SIM-END)  -> MonoBehaviours / UI
+     The level editor is part of the shell. It edits the tile-row format and
+     saves/exports exactly the levels.json level schema.
+     Menu, save data, particles, camera, drawing. Only reads sim state and
+     reacts to the events returned by step(): 'flip','jump','portal','die','win'.
+  ==============================================================================
+-->
+<script type="application/json" id="level-data">
+{"levels":[
+{"id":"warm-up","name":"Warm Up","mode":"flip","cols":96,"goal":92,
+ "checkpoints":[{"x":2},{"x":36},{"x":64}],
+ "ops":[
+  {"op":"spikes","x":10,"w":3},
+  {"op":"spikes","x":18,"w":3,"ceil":true},
+  {"op":"spikes","x":26,"w":3},
+  {"op":"spikes","x":30,"w":2,"ceil":true},
+  {"op":"block","x":40,"y":1,"w":2,"h":8},
+  {"op":"block","x":48,"y":6,"w":2,"h":8},
+  {"op":"block","x":52,"y":7,"w":10,"h":1},
+  {"op":"spikes","x":54,"w":8},
+  {"op":"spikes","x":54,"w":8,"ceil":true},
+  {"op":"spikes","x":68,"w":3},
+  {"op":"spikes","x":74,"w":3,"ceil":true},
+  {"op":"spikes","x":80,"w":2},
+  {"op":"spikes","x":84,"w":2,"ceil":true}]},
+{"id":"pillars","name":"Pillars","mode":"flip","cols":100,"goal":96,
+ "checkpoints":[{"x":2},{"x":49},{"x":64}],
+ "ops":[
+  {"op":"block","x":14,"y":1,"w":2,"h":8},
+  {"op":"block","x":22,"y":6,"w":2,"h":8},
+  {"op":"block","x":30,"y":1,"w":2,"h":8},
+  {"op":"block","x":38,"y":6,"w":2,"h":8},
+  {"op":"block","x":46,"y":1,"w":2,"h":8},
+  {"op":"block","x":54,"y":6,"w":2,"h":8},
+  {"op":"block","x":62,"y":1,"w":2,"h":8},
+  {"op":"block","x":70,"y":6,"w":2,"h":8},
+  {"op":"block","x":78,"y":1,"w":2,"h":8},
+  {"op":"block","x":86,"y":6,"w":2,"h":8}]},
+{"id":"spike-alley","name":"Spike Alley","mode":"flip","cols":92,"goal":88,
+ "checkpoints":[{"x":2},{"x":36},{"x":64}],
+ "ops":[
+  {"op":"spikes","x":12,"w":3},
+  {"op":"spikes","x":19,"w":3,"ceil":true},
+  {"op":"spikes","x":26,"w":3},
+  {"op":"spikes","x":33,"w":3,"ceil":true},
+  {"op":"spikes","x":40,"w":3},
+  {"op":"spikes","x":47,"w":3,"ceil":true},
+  {"op":"spikes","x":54,"w":3},
+  {"op":"spikes","x":61,"w":3,"ceil":true},
+  {"op":"spikes","x":68,"w":3},
+  {"op":"spikes","x":75,"w":3,"ceil":true}]},
+{"id":"threading","name":"Threading","mode":"wave","cols":102,"goal":98,
+ "checkpoints":[{"x":4,"y":7},{"x":40,"y":7},{"x":70,"y":7}],
+ "ops":[
+  {"op":"gap","x":14,"w":2,"y":6,"h":4,"bevel":true},
+  {"op":"gap","x":24,"w":2,"y":3,"h":4,"bevel":true},
+  {"op":"gap","x":34,"w":2,"y":8,"h":4,"bevel":true},
+  {"op":"gap","x":44,"w":2,"y":2,"h":4,"bevel":true},
+  {"op":"gap","x":54,"w":2,"y":7,"h":4,"bevel":true},
+  {"op":"gap","x":64,"w":2,"y":3,"h":4,"bevel":true},
+  {"op":"gap","x":74,"w":2,"y":9,"h":4,"bevel":true},
+  {"op":"gap","x":84,"w":2,"y":5,"h":4,"bevel":true}]},
+{"id":"zig-zag","name":"Zig Zag","mode":"wave","cols":120,"goal":114,
+ "checkpoints":[{"x":10,"y":7},{"x":26,"y":7},{"x":58,"y":7},{"x":90,"y":7}],
+ "ops":[
+  {"op":"zigzag","x":10,"x2":110,"y":7,"open":6,"smooth":true}]},
+{"id":"switchback","name":"Switchback","mode":"flip","label":"flip + wave","cols":140,"goal":134,
+ "checkpoints":[{"x":2},{"x":30,"y":7},{"x":66},{"x":98,"y":7}],
+ "ops":[
+  {"op":"spikes","x":10,"w":3},
+  {"op":"spikes","x":18,"w":3,"ceil":true},
+  {"op":"portal","x":26,"mode":"wave"},
+  {"op":"gap","x":34,"w":2,"y":6,"h":4,"bevel":true},
+  {"op":"gap","x":44,"w":2,"y":3,"h":4,"bevel":true},
+  {"op":"gap","x":54,"w":2,"y":8,"h":4,"bevel":true},
+  {"op":"portal","x":62,"mode":"flip"},
+  {"op":"block","x":72,"y":1,"w":2,"h":8},
+  {"op":"spikes","x":80,"w":3},
+  {"op":"block","x":88,"y":6,"w":2,"h":8},
+  {"op":"portal","x":94,"mode":"wave"},
+  {"op":"gap","x":102,"w":2,"y":5,"h":4,"bevel":true},
+  {"op":"gap","x":112,"w":2,"y":9,"h":4,"bevel":true},
+  {"op":"portal","x":118,"mode":"flip"},
+  {"op":"spikes","x":126,"w":3}]},
+{"id":"robot-steps","name":"Robot Steps","mode":"robot","cols":110,"goal":104,
+ "checkpoints":[{"x":2},{"x":40},{"x":72}],
+ "ops":[
+  {"op":"spikes","x":12,"w":1},
+  {"op":"spikes","x":20,"w":2},
+  {"op":"block","x":28,"y":12,"w":3,"h":2},
+  {"op":"spikes","x":36,"w":2},
+  {"op":"block","x":46,"y":11,"w":2,"h":3},
+  {"op":"spikes","x":54,"w":1},
+  {"op":"spikes","x":58,"w":1},
+  {"op":"block","x":62,"y":12,"w":6,"h":2},
+  {"op":"spikes","x":64,"y":11,"w":1},
+  {"op":"block","x":78,"y":11,"w":2,"h":3},
+  {"op":"spikes","x":86,"w":3},
+  {"op":"block","x":94,"y":12,"w":4,"h":2},
+  {"op":"spikes","x":98,"w":3}]},
+{"id":"long-jumps","name":"Long Jumps","mode":"robot","cols":112,"goal":106,
+ "checkpoints":[{"x":2},{"x":40},{"x":70}],
+ "ops":[
+  {"op":"spikes","x":12,"w":2},
+  {"op":"spikes","x":20,"w":3},
+  {"op":"block","x":30,"y":12,"w":2,"h":2},
+  {"op":"spikes","x":32,"w":5},
+  {"op":"spikes","x":44,"w":3},
+  {"op":"spikes","x":52,"w":4},
+  {"op":"block","x":60,"y":11,"w":3,"h":3},
+  {"op":"spikes","x":63,"w":5},
+  {"op":"block","x":76,"y":12,"w":2,"h":2},
+  {"op":"spikes","x":78,"w":4},
+  {"op":"spikes","x":88,"w":2},
+  {"op":"spikes","x":92,"w":3},
+  {"op":"spikes","x":99,"w":4}]},
+{"id":"low-ceiling","name":"Low Ceiling","mode":"robot","cols":120,"goal":114,
+ "checkpoints":[{"x":2},{"x":38},{"x":66},{"x":92}],
+ "ops":[
+  {"op":"block","x":12,"y":12,"w":4,"h":2},
+  {"op":"spikes","x":16,"w":2},
+  {"op":"block","x":18,"y":10,"w":4,"h":4},
+  {"op":"spikes","x":22,"w":2},
+  {"op":"block","x":24,"y":8,"w":3,"h":6},
+  {"op":"spikes","x":27,"w":4},
+  {"op":"block","x":44,"y":1,"w":16,"h":8},
+  {"op":"spikes","x":44,"y":9,"w":16,"ceil":true},
+  {"op":"spikes","x":47,"w":1},
+  {"op":"spikes","x":51,"w":2},
+  {"op":"spikes","x":56,"w":1},
+  {"op":"spikes","x":70,"w":3},
+  {"op":"block","x":78,"y":11,"w":5,"h":3},
+  {"op":"spikes","x":83,"w":3},
+  {"op":"block","x":98,"y":1,"w":10,"h":9},
+  {"op":"spikes","x":98,"y":10,"w":10,"ceil":true},
+  {"op":"spikes","x":101,"w":1},
+  {"op":"spikes","x":105,"w":1}]},
+{"id":"ceiling-run","name":"Ceiling Run","mode":"flip","cols":110,"goal":104,
+ "checkpoints":[{"x":2},{"x":38},{"x":64}],
+ "ops":[
+  {"op":"spikes","x":10,"w":2},
+  {"op":"spikes","x":14,"w":2,"ceil":true},
+  {"op":"block","x":20,"y":1,"w":2,"h":9},
+  {"op":"spikes","x":26,"w":3},
+  {"op":"block","x":32,"y":8,"w":2,"h":6},
+  {"op":"block","x":42,"y":1,"w":10,"h":4},
+  {"op":"block","x":42,"y":11,"w":10,"h":3},
+  {"op":"spikes","x":44,"y":10,"w":2},
+  {"op":"spikes","x":49,"y":5,"w":2,"ceil":true},
+  {"op":"spikes","x":58,"w":3},
+  {"op":"spikes","x":62,"w":3,"ceil":true},
+  {"op":"block","x":68,"y":1,"w":2,"h":7},
+  {"op":"block","x":74,"y":7,"w":2,"h":7},
+  {"op":"spikes","x":80,"w":4},
+  {"op":"spikes","x":86,"w":4,"ceil":true},
+  {"op":"spikes","x":94,"w":2}]},
+{"id":"needle","name":"Needle","mode":"wave","cols":110,"goal":104,
+ "checkpoints":[{"x":4,"y":7},{"x":54,"y":7},{"x":76,"y":8}],
+ "ops":[
+  {"op":"gap","x":14,"w":2,"y":5,"h":3,"bevel":true},
+  {"op":"gap","x":22,"w":2,"y":9,"h":3,"bevel":true},
+  {"op":"gap","x":30,"w":2,"y":4,"h":3,"bevel":true},
+  {"op":"gap","x":36,"w":2,"y":7,"h":3,"bevel":true},
+  {"op":"gap","x":42,"w":2,"y":10,"h":3,"bevel":true},
+  {"op":"gap","x":50,"w":2,"y":6,"h":3,"bevel":true},
+  {"op":"zigzag","x":58,"x2":90,"y":7,"open":4,"smooth":true},
+  {"op":"gap","x":96,"w":2,"y":6,"h":3,"bevel":true}]},
+{"id":"gauntlet","name":"Gauntlet","mode":"robot","label":"robot + flip + wave","cols":160,"goal":154,
+ "checkpoints":[{"x":2},{"x":31},{"x":57,"y":7},{"x":91},{"x":115}],
+ "ops":[
+  {"op":"spikes","x":10,"w":2},
+  {"op":"block","x":18,"y":12,"w":3,"h":2},
+  {"op":"spikes","x":21,"w":3},
+  {"op":"portal","x":28,"mode":"flip"},
+  {"op":"spikes","x":34,"w":3},
+  {"op":"spikes","x":40,"w":3,"ceil":true},
+  {"op":"block","x":46,"y":1,"w":2,"h":8},
+  {"op":"portal","x":54,"mode":"wave","row":7},
+  {"op":"gap","x":60,"w":2,"y":4,"h":4},
+  {"op":"gap","x":70,"w":2,"y":9,"h":4},
+  {"op":"gap","x":80,"w":2,"y":5,"h":4},
+  {"op":"portal","x":88,"mode":"robot"},
+  {"op":"spikes","x":96,"w":2},
+  {"op":"block","x":102,"y":11,"w":3,"h":3},
+  {"op":"spikes","x":105,"w":3},
+  {"op":"portal","x":112,"mode":"flip"},
+  {"op":"spikes","x":118,"w":3,"ceil":true},
+  {"op":"spikes","x":124,"w":3},
+  {"op":"portal","x":130,"mode":"robot"},
+  {"op":"spikes","x":138,"w":3},
+  {"op":"block","x":144,"y":12,"w":2,"h":2},
+  {"op":"spikes","x":146,"w":3}]},
+{"id":"mini-me","name":"Mini Me","mode":"wave","label":"wave + mini","cols":124,"goal":118,
+ "checkpoints":[{"x":4,"y":7},{"x":36,"y":7},{"x":76,"y":7}],
+ "ops":[
+  {"op":"gap","x":14,"w":2,"y":5,"h":4},
+  {"op":"gap","x":24,"w":2,"y":8,"h":4},
+  {"op":"size","x":32,"mini":true},
+  {"op":"gap","x":40,"w":2,"y":2,"h":5},
+  {"op":"gap","x":48,"w":2,"y":8,"h":5},
+  {"op":"gap","x":56,"w":2,"y":2,"h":5},
+  {"op":"gap","x":64,"w":2,"y":8,"h":5},
+  {"op":"size","x":72,"mini":false},
+  {"op":"gap","x":82,"w":2,"y":7,"h":4},
+  {"op":"gap","x":92,"w":2,"y":3,"h":4},
+  {"op":"size","x":98,"mini":true},
+  {"op":"gap","x":104,"w":2,"y":8,"h":5},
+  {"op":"gap","x":111,"w":2,"y":2,"h":5}]},
+{"id":"size-shift","name":"Size Shift","mode":"flip","label":"flip + wave + mini","cols":150,"goal":144,
+ "checkpoints":[{"x":2},{"x":30,"y":7},{"x":72,"y":7},{"x":108}],
+ "ops":[
+  {"op":"spikes","x":10,"w":3},
+  {"op":"spikes","x":18,"w":3,"ceil":true},
+  {"op":"portal","x":26,"mode":"wave","row":7},
+  {"op":"gap","x":34,"w":2,"y":4,"h":4},
+  {"op":"size","x":40,"mini":true},
+  {"op":"gap","x":47,"w":2,"y":8,"h":5},
+  {"op":"gap","x":55,"w":2,"y":2,"h":5},
+  {"op":"gap","x":63,"w":2,"y":8,"h":5},
+  {"op":"size","x":70,"mini":false},
+  {"op":"gap","x":78,"w":2,"y":6,"h":4},
+  {"op":"size","x":84,"mini":true},
+  {"op":"gap","x":90,"w":2,"y":2,"h":5},
+  {"op":"gap","x":97,"w":2,"y":8,"h":5},
+  {"op":"size","x":102,"mini":false},
+  {"op":"portal","x":106,"mode":"flip"},
+  {"op":"spikes","x":114,"w":3},
+  {"op":"spikes","x":120,"w":3,"ceil":true},
+  {"op":"spikes","x":128,"w":2},
+  {"op":"spikes","x":134,"w":2,"ceil":true}]},
+{"id":"orb-hopper","name":"Orb Hopper","mode":"robot","label":"robot + flip + orbs","cols":160,"goal":154,
+ "checkpoints":[{"x":2},{"x":50},{"x":100},{"x":124}],
+ "ops":[
+  {"op":"spikes","x":10,"w":2},
+  {"op":"spikes","x":18,"w":7},
+  {"op":"tile","x":21,"y":10,"t":"y"},
+  {"op":"spikes","x":34,"w":10},
+  {"op":"tile","x":37,"y":10,"t":"y"},
+  {"op":"tile","x":41,"y":10,"t":"y"},
+  {"op":"spikes","x":56,"w":20},
+  {"op":"tile","x":59,"y":10,"t":"u"},
+  {"op":"spikes","x":80,"w":16,"ceil":true},
+  {"op":"tile","x":78,"y":4,"t":"u"},
+  {"op":"portal","x":104,"mode":"flip"},
+  {"op":"spikes","x":110,"w":10},
+  {"op":"spikes","x":116,"w":20,"ceil":true},
+  {"op":"tile","x":117,"y":8,"t":"y"},
+  {"op":"spikes","x":132,"w":14},
+  {"op":"tile","x":133,"y":6,"t":"y"}]}
+]}
+</script>
+<script>
+// ===== SIM-BEGIN =====
+// Pure simulation. No DOM, canvas or wall clock. Units are tiles; y points down.
+const CONFIG = {
+  rows: 15,                 // grid height incl. solid floor (row 14) and ceiling (row 0)
+  dt: 1 / 60,               // fixed step (Unity: Time.fixedDeltaTime)
+  inputBuffer: 0.12,        // a press stays valid this long (s)
+  respawnFreeze: 0.5,       // shell: pause after (re)spawn (s)
+  deathDelay: 0.55,         // shell: pause after death (s)
+  spike: { inset: 3 / 16, w: 10 / 16, h: 0.5 },   // spike hitbox inside its tile
+  modes: {
+    flip:  { speed: 5.125, gravity: 62.5, maxFall: 21.25, coyote: 0.08, w: 0.625, h: 0.875 },
+    wave:  { speed: 5.625, w: 0.375, h: 0.375, climb: 1,      // climb = vertical tiles per horizontal tile
+             mini: { w: 0.25, h: 0.25, climb: 2 } },          // mini wave: smaller and twice as steep
+    robot: { speed: 5.125, gravity: 30, maxFall: 18, coyote: 0.08, w: 0.625, h: 0.875,
+             jumpVel: 7.5,      // upward speed while boosting (lower = flatter launch angle)
+             boostTime: 0.38,   // max time the jump can be held
+             minBoost: 0.06 },  // a tap still boosts this long
+  },
+  // orbs: press while touching one in mid-air (once per attempt). Never affect the wave.
+  orbs: { yellowHeight: 1.75,   // yellow: jump this many tiles (flip and robot)
+          blueKick: 3 },        // blue (robot only): flips gravity, then this speed toward the new "down"
+};
+const TILE = { EMPTY: 0, SOLID: 1, SPIKE_UP: 2, SPIKE_DOWN: 3, PORTAL_FLIP: 4, PORTAL_WAVE: 5, PORTAL_ROBOT: 6,
+               PORTAL_MINI: 7, PORTAL_NORMAL: 8,          // size portals only affect the wave
+               SPIKE_LEFT: 9, SPIKE_RIGHT: 10,            // spikes pointing left / right
+               SLOPE_BR: 11, SLOPE_BL: 12, SLOPE_TL: 13, SLOPE_TR: 14,   // 45deg slopes, named by their solid corner
+               ORB_YELLOW: 15, ORB_BLUE: 16 };
+const TILE_CHARS = '.#^vFWRMN<>abcdyu';   // char per TILE value, used for the exported grids
+// 90deg clockwise rotation (the editor's E key); spikes: up > right > down > left, slopes: BR > BL > TL > TR
+const ROT_CW = { 2: 10, 10: 3, 3: 9, 9: 2, 11: 12, 12: 13, 13: 14, 14: 11 };
+const ROT_CCW = Object.fromEntries(Object.entries(ROT_CW).map(([a, b]) => [b, +a]));
+const isSpikeTile = t => t === 2 || t === 3 || t === 9 || t === 10;
+const isSlopeTile = t => t >= 11 && t <= 14;
+const isPortalTile = t => t >= 4 && t <= 8;
+const isOrbTile = t => t === 15 || t === 16;
+const PORTAL_TILE = { flip: 4, wave: 5, robot: 6 };
+const TILE_PORTAL = { 4: 'flip', 5: 'wave', 6: 'robot' };
+const EPS = 1e-3, SNAP = 1e-4, FLOOR_GAP = 1 / 16;
+
+function compileLevel(def) {
+  const R = CONFIG.rows, N = def.cols, F = R - 2;   // F = lowest playable row
+  const grid = Array.from({ length: R }, (_, r) => new Array(N).fill(r === 0 || r === R - 1 ? TILE.SOLID : TILE.EMPTY));
+  const set = (c, r, t) => { if (r >= 0 && r < R && c >= 0 && c < N) grid[r][c] = t; };
+  const portals = [];
+  if (def.tiles) {   // tile-row format (editor + levels.json): one char per tile, see TILE_CHARS
+    for (let r = 0; r < R; r++) for (let c = 0; c < N; c++) {
+      const t = TILE_CHARS.indexOf((def.tiles[r] || '')[c]); grid[r][c] = t < 0 ? TILE.EMPTY : t;
+    }
+    if (def.portals) def.portals.forEach(q => portals.push({ x: q.x, mode: q.mode, row: q.row !== undefined ? q.row : 7 }));
+    else for (let c = 0; c < N; c++) for (let r = 1; r < R - 1; r++) {
+      const m = TILE_PORTAL[grid[r][c]]; if (m) { portals.push({ x: c, mode: m, row: 7 }); break; }
+    }
+  }
+  for (const o of def.ops || []) {
+    switch (o.op) {
+      case 'block':
+        for (let r = o.y; r < o.y + o.h; r++) for (let c = o.x; c < o.x + o.w; c++) set(c, r, TILE.SOLID);
+        break;
+      case 'spikes': {
+        const r = o.y !== undefined ? o.y : (o.ceil ? 1 : F);
+        for (let c = o.x; c < o.x + o.w; c++) set(c, r, o.ceil ? TILE.SPIKE_DOWN : TILE.SPIKE_UP);
+        break;
+      }
+      case 'gap':   // wall column(s) with an opening of h rows starting at y; bevel:true slopes the opening's corners
+        for (let c = o.x; c < o.x + o.w; c++) for (let r = 1; r <= F; r++) if (r < o.y || r >= o.y + o.h) set(c, r, TILE.SOLID);
+        if (o.bevel && o.w >= 2) {
+          const xr = o.x + o.w - 1, inRows = r => r >= 1 && r <= F;
+          if (inRows(o.y - 1)) { set(o.x, o.y - 1, TILE.SLOPE_TR); set(xr, o.y - 1, TILE.SLOPE_TL); }
+          if (inRows(o.y + o.h)) { set(o.x, o.y + o.h, TILE.SLOPE_BR); set(xr, o.y + o.h, TILE.SLOPE_BL); }
+        }
+        break;
+      case 'zigzag': { // diagonal corridor, period 16 columns, centred on row y
+        const open = o.open || 6, mid = o.y !== undefined ? o.y : 7, top = Math.floor(open / 2);
+        for (let c = o.x; c <= o.x2; c++) {
+          const u = (c - o.x) % 16, k = mid + (u < 4 ? u : u < 12 ? 8 - u : u - 16);
+          for (let r = 1; r <= F; r++) if (r < k - top || r >= k - top + open) set(c, r, TILE.SOLID);
+        }
+        if (o.smooth) {   // replace the stair steps with 45deg slopes
+          const kAt = c => { const u = (c - o.x) % 16; return mid + (u < 4 ? u : u < 12 ? 8 - u : u - 16); };
+          const put = (c, r, t) => { if (r >= 1 && r <= F && grid[r][c] === TILE.SOLID) set(c, r, t); };
+          for (let c = o.x; c < o.x2; c++) {
+            const k = kAt(c), k2 = kAt(c + 1);
+            if (k2 === k + 1) { put(c + 1, k - top, TILE.SLOPE_TR); put(c, k - top + open, TILE.SLOPE_BL); }
+            else if (k2 === k - 1) { put(c, k - top - 1, TILE.SLOPE_TL); put(c + 1, k - 1 - top + open, TILE.SLOPE_BR); }
+          }
+          // a slope whose vertical side faces open air is a stray triangle at a peak: remove it
+          const side = { [TILE.SLOPE_BR]: 1, [TILE.SLOPE_TR]: 1, [TILE.SLOPE_BL]: -1, [TILE.SLOPE_TL]: -1 };
+          for (let c = o.x; c <= o.x2; c++) for (let r = 1; r <= F; r++) {
+            const d = side[grid[r][c]];
+            if (d && grid[r][c + d] !== TILE.SOLID) set(c, r, TILE.EMPTY);
+          }
+        }
+        break;
+      }
+      case 'tile': {   // any tile by its char, e.g. slopes: { op:'tile', x, y, w, h, t:'a' }
+        const t = TILE_CHARS.indexOf(o.t);
+        for (let r = o.y; r < o.y + (o.h || 1); r++) for (let c = o.x; c < o.x + (o.w || 1); c++) set(c, r, t);
+        break;
+      }
+      case 'size':   // size portal column: { op:'size', x, mini:true|false }
+        for (let r = 1; r <= F; r++) if (grid[r][o.x] === TILE.EMPTY) grid[r][o.x] = o.mini ? TILE.PORTAL_MINI : TILE.PORTAL_NORMAL;
+        break;
+      case 'portal':
+        for (let r = 1; r <= F; r++) if (grid[r][o.x] === TILE.EMPTY) grid[r][o.x] = PORTAL_TILE[o.mode];
+        portals.push({ x: o.x, mode: o.mode, row: o.row !== undefined ? o.row : 7 });
+        break;
+      default: throw new Error('unknown op ' + o.op);
+    }
+  }
+  portals.sort((a, b) => a.x - b.x);
+  const modeAt = x => { let m = def.mode; for (const q of portals) if (q.x < x) m = q.mode; return m; };
+  // size portals are read straight from the grid (no extra JSON needed)
+  const sizePortals = [];
+  for (let c = 0; c < N; c++) for (let r = 1; r <= F; r++) {
+    const t = grid[r][c];
+    if (t === TILE.PORTAL_MINI || t === TILE.PORTAL_NORMAL) { sizePortals.push({ x: c, mini: t === TILE.PORTAL_MINI }); break; }
+  }
+  // is the wave mini at x? (size resets whenever the mode changes)
+  const events = [...portals.map(q => ({ x: q.x, mode: q.mode })), ...sizePortals].sort((a, b) => a.x - b.x);
+  const miniAt = x => {
+    let m = def.mode, mini = false;
+    for (const e of events) { if (e.x >= x) break; if (e.mode) { if (e.mode !== m) mini = false; m = e.mode; } else if (m === 'wave') mini = e.mini; }
+    return m === 'wave' && mini;
+  };
+  return {
+    id: def.id, name: def.name, cols: N, rows: R, grid, goal: def.goal, startMode: def.mode, portals, modeAt, sizePortals, miniAt,
+    checkpoints: def.checkpoints.map(c => ({ x: c.x, y: c.y !== undefined ? c.y : 7 })),
+    zone: Array.from({ length: N }, (_, c) => modeAt(c + 0.5)),
+  };
+}
+
+function isSolid(L, c, r) { return c < 0 || c >= L.cols || r < 0 || r >= L.rows || L.grid[r][c] === TILE.SOLID; }
+function hitsSolid(L, x, y, w, h) {
+  for (let r = Math.floor(y); r <= Math.floor(y + h - EPS); r++)
+    for (let c = Math.floor(x); c <= Math.floor(x + w - EPS); c++) if (isSolid(L, c, r)) return true;
+  return false;
+}
+// spike hitbox: the base half of the tile, inset from the sides, rotated with the spike
+function spikeBox(t, c, r) {
+  const S = CONFIG.spike;
+  if (t === TILE.SPIKE_UP)    return [c + S.inset, r + 1 - S.h, S.w, S.h];
+  if (t === TILE.SPIKE_DOWN)  return [c + S.inset, r, S.w, S.h];
+  if (t === TILE.SPIKE_RIGHT) return [c, r + S.inset, S.h, S.w];
+  return [c + 1 - S.h, r + S.inset, S.h, S.w];   // SPIKE_LEFT
+}
+function hitsSpike(L, x, y, w, h) {
+  for (let r = Math.floor(y); r <= Math.floor(y + h); r++)
+    for (let c = Math.floor(x); c <= Math.floor(x + w); c++) {
+      const t = L.grid[r] && L.grid[r][c];
+      if (!isSpikeTile(t)) continue;
+      const [sx, sy, sw, sh] = spikeBox(t, c, r);
+      if (x < sx + sw && x + w > sx && y < sy + sh && y + h > sy) return true;
+    }
+  return false;
+}
+// How far the box is inside slope triangles: up = push needed upward out of floor slopes (BR, BL),
+// down = push needed downward out of ceiling slopes (TL, TR). Both 0 means no contact.
+function slopePen(L, x, y, w, h) {
+  let up = 0, down = 0;
+  for (let r = Math.floor(y); r <= Math.floor(y + h - EPS); r++)
+    for (let c = Math.floor(x); c <= Math.floor(x + w - EPS); c++) {
+      const t = L.grid[r] && L.grid[r][c];
+      if (!isSlopeTile(t)) continue;
+      const xl = Math.max(x, c) - c, xr = Math.min(x + w, c + 1) - c;   // overlap, local 0..1
+      if (xr <= xl) continue;
+      if (t === TILE.SLOPE_BR)      up = Math.max(up, y + h - (r + 1 - xr));     // surface rises to the right
+      else if (t === TILE.SLOPE_BL) up = Math.max(up, y + h - (r + xl));         // surface falls to the right
+      else if (t === TILE.SLOPE_TL) down = Math.max(down, r + 1 - xl - y);       // underside falls to the right
+      else                          down = Math.max(down, r + xr - y);           // SLOPE_TR
+    }
+  return { up, down };
+}
+
+function createSim(L, opts = {}) {
+  const S = { L, hard: !!opts.hard, cp: opts.cp || 0, time: 0, deaths: 0, status: 'play', mode: L.startMode,
+    p: { x: 0, y: 0, w: 1, h: 1, vy: 0, g: 1, ground: false, px: 0, py: 0 },
+    buffer: 0, coyote: 0, boost: 0, boostEl: 0, mini: false, used: ';' };   // used = orbs used this attempt, ";c,r;c,r;"
+  respawn(S, opts.ceil);
+  return S;
+}
+function applySize(S, m) { const C = CONFIG.modes[m], z = m === 'wave' && S.mini ? C.mini : C; S.p.w = z.w; S.p.h = z.h; }
+function setMini(S, on) {   // keep the centre where it is
+  const p = S.p, cx = p.x + p.w / 2, cy = p.y + p.h / 2;
+  S.mini = on; applySize(S, S.mode);
+  p.x = cx - p.w / 2; p.y = cy - p.h / 2; p.px = p.x; p.py = p.y;
+}
+// ceil: the player died upside down (flip/robot), so come back on the ceiling with gravity flipped
+function respawn(S, ceil) {
+  const L = S.L, p = S.p, c = L.checkpoints[S.cp];
+  S.mode = L.modeAt(c.x); S.mini = L.miniAt(c.x); applySize(S, S.mode);
+  p.x = c.x;
+  p.y = S.mode === 'wave' ? c.y + 0.5 - p.h / 2 : L.rows - 1 - p.h - FLOOR_GAP;
+  p.g = 1;
+  if (ceil && S.mode !== 'wave') { const y = ceilingSpawnY(L, p); if (y !== null) { p.y = y; p.g = -1; } }
+  p.vy = 0; p.ground = false; p.px = p.x; p.py = p.y;
+  S.buffer = S.coyote = S.boost = S.boostEl = 0; S.used = ';'; S.status = 'play';
+}
+// y for standing on the underside of the first solid above the floor spawn, or null if that spot is unsafe
+function ceilingSpawnY(L, p) {
+  const c0 = Math.floor(p.x), c1 = Math.floor(p.x + p.w - EPS);
+  for (let r = Math.floor(p.y); r >= 0; r--) {
+    let hit = false;
+    for (let c = c0; c <= c1; c++) { const t = L.grid[r][c]; if (t === TILE.SOLID || isSlopeTile(t)) hit = true; }
+    if (!hit) continue;
+    const y = r + 1 + FLOOR_GAP, sp = slopePen(L, p.x, y, p.w, p.h);
+    if (hitsSolid(L, p.x, y, p.w, p.h) || hitsSpike(L, p.x, y, p.w, p.h) || sp.up > 0 || sp.down > 0) return null;
+    return y;
+  }
+  return null;
+}
+function setMode(S, m, row) {
+  const p = S.p, L = S.L, cx = p.x + p.w / 2, cy = m === 'wave' ? row + 0.5 : p.y + p.h / 2;
+  S.mode = m; S.mini = false; applySize(S, m);
+  p.g = 1; p.vy = 0; p.ground = false; S.coyote = S.buffer = S.boost = S.boostEl = 0;
+  p.x = cx - p.w / 2;
+  p.y = Math.max(1 + FLOOR_GAP, Math.min(L.rows - 1 - p.h - FLOOR_GAP, cy - p.h / 2));
+  p.px = p.x; p.py = p.y;
+}
+// first unused orb the player is touching that works in the current mode
+function orbAt(L, S) {
+  const p = S.p;
+  for (let r = Math.floor(p.y); r <= Math.floor(p.y + p.h - EPS); r++)
+    for (let c = Math.floor(p.x); c <= Math.floor(p.x + p.w - EPS); c++) {
+      const t = L.grid[r] && L.grid[r][c];
+      if (!isOrbTile(t)) continue;   // both orbs work in flip and robot; the wave never checks orbs
+      if (!S.used.includes(';' + c + ',' + r + ';')) return { c, r, t };
+    }
+  return null;
+}
+function die(S, ev) { S.status = 'dead'; S.deaths++; ev.push('die'); return ev; }
+
+// Advance one fixed step. input = { down: bool held, pressed: bool pressed since last step }.
+// Returns a list of events for the presentation layer.
+function step(S, input) {
+  const L = S.L, p = S.p, dt = CONFIG.dt, ev = [];
+  if (S.status !== 'play') return ev;
+  p.px = p.x; p.py = p.y; S.time += dt;
+  if (input.pressed) S.buffer = CONFIG.inputBuffer;
+
+  // portals: the player's centre entering a portal column switches mode
+  const pr = Math.floor(p.y + p.h / 2), pc = Math.floor(p.x + p.w / 2);
+  const pm = TILE_PORTAL[L.grid[pr] && L.grid[pr][pc]];
+  if (pm && pm !== S.mode) { const q = L.portals.find(q => q.x === pc); setMode(S, pm, q ? q.row : 7); ev.push('portal'); }
+  // size portals: only the wave reacts to them
+  const st = L.grid[Math.floor(p.y + p.h / 2)] && L.grid[Math.floor(p.y + p.h / 2)][Math.floor(p.x + p.w / 2)];
+  if (S.mode === 'wave' && (st === TILE.PORTAL_MINI || st === TILE.PORTAL_NORMAL) && S.mini !== (st === TILE.PORTAL_MINI)) {
+    setMini(S, st === TILE.PORTAL_MINI); ev.push(S.mini ? 'shrink' : 'grow');
+  }
+
+  if (S.mode === 'wave') {
+    const C = CONFIG.modes.wave;
+    p.x += C.speed * dt;
+    p.vy = (input.down ? -1 : 1) * C.speed * (S.mini ? C.mini.climb : C.climb);
+    p.y += p.vy * dt;
+    const sp = slopePen(L, p.x, p.y, p.w, p.h);
+    if (hitsSolid(L, p.x, p.y, p.w, p.h) || hitsSpike(L, p.x, p.y, p.w, p.h) || sp.up > EPS || sp.down > EPS) return die(S, ev);
+  } else {
+    const C = CONFIG.modes[S.mode];
+    S.buffer = Math.max(0, S.buffer - dt);
+    S.coyote = p.ground ? C.coyote : Math.max(0, S.coyote - dt);
+    if (S.mode === 'flip') {
+      if (S.buffer > 0 && S.coyote > 0) { p.g *= -1; p.vy = 0; S.buffer = S.coyote = 0; p.ground = false; ev.push('flip'); }
+    } else if ((S.buffer > 0 || input.down) && S.coyote > 0 && S.boost <= 0) {
+      // robot: jump on press, or automatically on landing while held
+      S.boost = C.boostTime; S.boostEl = 0; S.buffer = S.coyote = 0; p.ground = false; ev.push('jump');
+    }
+    // orbs: a (buffered) press while touching one in mid-air
+    if (S.buffer > 0 && !p.ground) {
+      const o = orbAt(L, S);
+      if (o) {
+        if (o.t === TILE.ORB_YELLOW) p.vy = -Math.sqrt(2 * C.gravity * CONFIG.orbs.yellowHeight) * p.g;
+        else { p.g *= -1; p.vy = CONFIG.orbs.blueKick * p.g; }
+        S.boost = 0; S.buffer = 0; S.used += o.c + ',' + o.r + ';'; ev.push(o.t === TILE.ORB_YELLOW ? 'orb' : 'orbBlue');
+      }
+    }
+
+    const wasGround = p.ground;
+    p.x += C.speed * dt;
+    // running into a slope: ride up its surface, but its vertical side is a wall
+    const climb = C.speed * dt + 0.05;
+    let sp = slopePen(L, p.x, p.y, p.w, p.h);
+    if (sp.up > 0) { if (sp.up > climb) return die(S, ev); p.y -= sp.up + SNAP; }
+    sp = slopePen(L, p.x, p.y, p.w, p.h);
+    if (sp.down > 0) { if (sp.down > climb) return die(S, ev); p.y += sp.down + SNAP; }
+    if (hitsSolid(L, p.x, p.y, p.w, p.h)) return die(S, ev);   // hitting a wall from the side kills
+
+    let boosting = false;
+    if (S.boost > 0) {
+      if (input.down || S.boostEl < C.minBoost) {
+        boosting = true; S.boost -= dt; S.boostEl += dt; p.vy = -C.jumpVel * p.g;
+      } else S.boost = 0;   // released: the jump can't be resumed
+    }
+    if (!boosting) p.vy = Math.max(-C.maxFall, Math.min(C.maxFall, p.vy + C.gravity * p.g * dt));
+    p.y += p.vy * dt; p.ground = false;
+    if (hitsSolid(L, p.x, p.y, p.w, p.h)) {
+      if (p.vy > 0) { p.y = Math.floor(p.y + p.h) - p.h - SNAP; if (p.g > 0) p.ground = true; }
+      else          { p.y = Math.floor(p.y) + 1 + SNAP;          if (p.g < 0) p.ground = true; }
+      p.vy = 0; S.boost = 0;
+    }
+    sp = slopePen(L, p.x, p.y, p.w, p.h);
+    if (sp.up > 0) {     // floor slope: land on its surface, or bump its flat underside
+      if (p.vy >= 0) { p.y -= sp.up + SNAP; if (p.g > 0) p.ground = true; }
+      else { p.y = Math.floor(p.y) + 1 + SNAP; if (p.g < 0) p.ground = true; }
+      p.vy = 0; S.boost = 0;
+    }
+    sp = slopePen(L, p.x, p.y, p.w, p.h);
+    if (sp.down > 0) {   // ceiling slope: mirror image
+      if (p.vy <= 0) { p.y += sp.down + SNAP; if (p.g < 0) p.ground = true; }
+      else { p.y = Math.floor(p.y + p.h) - p.h - SNAP; if (p.g > 0) p.ground = true; }
+      p.vy = 0; S.boost = 0;
+    }
+    // follow a slope downhill instead of hopping off it every step
+    if (wasGround && !p.ground && p.vy * p.g >= 0) {
+      if (p.g > 0) { const q = slopePen(L, p.x, p.y + climb, p.w, p.h); if (q.up > 0 && q.up <= climb) { p.y += climb - q.up - SNAP; p.ground = true; p.vy = 0; } }
+      else { const q = slopePen(L, p.x, p.y - climb, p.w, p.h); if (q.down > 0 && q.down <= climb) { p.y -= climb - q.down - SNAP; p.ground = true; p.vy = 0; } }
+    }
+    if (hitsSolid(L, p.x, p.y, p.w, p.h)) return die(S, ev);
+    if (hitsSpike(L, p.x, p.y, p.w, p.h)) return die(S, ev);
+  }
+
+  if (!S.hard) L.checkpoints.forEach((c, i) => { if (p.x > c.x && i > S.cp) S.cp = i; });
+  if (p.x > L.goal) { S.status = 'win'; ev.push('win'); }
+  return ev;
+}
+// ===== SIM-END =====
+
+// ============================== SHELL ==============================
+// ---- online levels: paste your Firebase web app config here (Firebase console > Project settings > Your apps) ----
+// e.g. { apiKey: "AIza...", authDomain: "my-game.firebaseapp.com", projectId: "my-game", storageBucket: "my-game.appspot.com",
+//        messagingSenderId: "1234", appId: "1:1234:web:abcd" }.  Leave it null to play offline only.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDzF_UM_TtIjMrtyD9zrB3sLujNlySQNok",
+  authDomain: "robo-runner-level-browser.firebaseapp.com",
+  projectId: "robo-runner-level-browser",
+  storageBucket: "robo-runner-level-browser.firebasestorage.app",
+  messagingSenderId: "32823518490",
+  appId: "1:32823518490:web:44c4e331b2abc8b0e838a3"
+};
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const T = 16;   // render pixels per tile
+const C = { bg: '#120f33', spike: '#ff5470', hero: '#35e6c8', ink: '#120f33', flag: '#ffd23f', text: '#e9e6ff' };
+const PAL = {
+  flip:  { tile: '#4a52e8', edge: '#8e9bff', card: '#1e1b55', label: '#35e6c8' },
+  wave:  { tile: '#a7389a', edge: '#ff8ad8', card: '#3a1a4a', label: '#ff8ad8' },
+  robot: { tile: '#b4531c', edge: '#ffb36b', card: '#3a2414', label: '#ffb36b' },
+};
+const ORB_YELLOW_COL = '#ffd23f', ORB_BLUE_COL = '#4fb8ff';
+const PORTAL_COLOR = { 4: C.hero, 5: '#ff8ad8', 6: '#ffb36b', 7: '#9dff6b', 8: '#6bc8ff' };
+const HINT = { flip: 'tap to flip gravity', wave: 'hold to rise, release to fall', robot: 'tap to hop, hold to jump higher' };
+const LEVEL_DEFS = JSON.parse(document.getElementById('level-data').textContent).levels;
+
+// ---- save ----
+let save = { best: {}, debug: false };
+try {
+  const o = JSON.parse(localStorage.getItem('flipRunnerSave2') || 'null');
+  if (o) save = o;
+  else { const old = JSON.parse(localStorage.getItem('flipRunnerBest') || '{}'); for (const k in old) save.best['e' + k] = old[k]; }
+} catch (e) {}
+const best = save.best;
+const store = () => { try { localStorage.setItem('flipRunnerSave2', JSON.stringify(save)); } catch (e) {} };
+if (typeof save.coins !== 'number') save.coins = 0;
+save.coinLog = save.coinLog || {}; save.skins = save.skins || ['default']; save.skin = save.skin || 'default'; save.ach = save.ach || {};
+LEVEL_DEFS.forEach((d, i) => [['e', 1], ['h', 2]].forEach(([m, n]) => {
+  const k = 'c:' + m + ':' + d.id; if (best[m + i] && !save.coinLog[k]) { save.coinLog[k] = 1; save.coins += n; }
+}));
+if (!save.ach.hard && Object.keys(best).some(k => k[0] === 'h')) save.ach.hard = Date.now();
+let hard = false;
+const unlocked = i => i === 0 || save.debug || best['e' + (i - 1)] || best['h' + (i - 1)];
+
+// ---- shell state ----
+let state = 'home', lvl = 0, L = null, S = null, testing = false;
+let playCtx = { kind: 'campaign' };   // what we are playing: campaign level, custom level, or editor test
+let coinGain = 0;   // coins paid for the clear on screen
+let deadT = 0, deadUp = false, grace = 0, winT = 0, acc = 0, flipAnim = 0;
+let down = false, pressQueued = false, cards = [], newBest = false, firstClear = false;
+let parts = [], trail = [];
+const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * 600, y: Math.random() * 240, z: 0.2 + Math.random() * 0.5 }));
+
+function ring(x, y) { return Array.from({ length: 12 }, (_, i) => ({ x, y, vx: Math.cos(i * 0.5236) * 90, vy: Math.sin(i * 0.5236) * 90, life: 0.3 })); }
+function burst(x, y, n, speed, life) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * 6.28, s = speed[0] + Math.random() * (speed[1] - speed[0]);
+    parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: life[0] + Math.random() * (life[1] - life[0]) });
+  }
+}
+function afterRespawn() { trail = []; grace = CONFIG.respawnFreeze; acc = 0; pressQueued = false; }
+let curDef = null, testFromStart = false;
+let lastStart = null, restartBtn = null;
+function startDef(def, idx, musicFromX) {
+  lastStart = [def, idx, musicFromX];
+  curDef = def; lvl = idx; L = compileLevel(def); S = createSim(L, { hard: testing ? false : hard });
+  down = false; newBest = false; firstClear = false; afterRespawn(); state = 'play';
+  loadMusic(def, musicFromX === undefined ? L.checkpoints[0].x : musicFromX);
+}
+function startLevel(i) { testing = false; playCtx = { kind: 'campaign' }; startDef(LEVEL_DEFS[i], i); }
+function playCustom(def) { testing = false; playCtx = { kind: 'custom', id: def.id }; startDef(def, -1); }
+const bestKey = () => (hard ? 'h' : 'e') + (playCtx.kind === 'custom' ? ':' + playCtx.id : playCtx.kind === 'online' ? ':o:' + playCtx.id : lvl);
+const backLabel = () => testing ? '< editor' : playCtx.kind === 'custom' ? '< my levels' : playCtx.kind === 'online' ? '< user levels' : '< levels';
+function goBack() {   // leave a level
+  if (testing) backToEditor();
+  else state = playCtx.kind === 'custom' ? 'mylevels' : playCtx.kind === 'online' ? 'online' : 'menu';
+}
+
+// ---- input ----
+// restart from the start of the level (clears checkpoints): the way out of a soft lock
+function restartLevel() { if (lastStart && (state === 'play' || state === 'dead')) startDef(...lastStart); }
+const MENU_STATES = ['home', 'playmenu', 'menu', 'settings', 'mylevels', 'online', 'shop'];
+let mouse = { x: -1, y: -1 }, ptr = null;
+const scrollY = { menu: 0, mylevels: 0, online: 0, shop: 0, settings: 0 };
+let maxScroll = 0;
+function press() {
+  if (state === 'win') {
+    if (winT > 0.6) {
+      if (testing) backToEditor();
+      else if (playCtx.kind === 'custom') state = 'mylevels';
+      else if (playCtx.kind === 'online') state = 'online';
+      else lvl + 1 < LEVEL_DEFS.length ? startLevel(lvl + 1) : state = 'menu';
+    }
+    return;
+  }
+  if (state === 'play') { down = true; pressQueued = true; }
+}
+let cardsState = '';   // which screen the current hit areas were drawn for
+function hitCard(x, y) {
+  if (cardsState !== state) return null;
+  for (let i = cards.length - 1; i >= 0; i--) {
+    const k = cards[i];
+    if (x > k.x && x < k.x + k.w && y > k.y && y < k.y + k.h && y >= (k.minY || 0)) return k;
+  }
+  return null;
+}
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const x = e.clientX, y = e.clientY;
+  mouse.x = x; mouse.y = y;
+  if (state === 'editor') { edPointerDown(e); return; }
+  if (MENU_STATES.includes(state)) { if (document.activeElement === olSearch) olSearch.blur(); ptr = { x, y, s0: scrollY[state] || 0, drag: false }; return; }
+  if (x < ox + 130 && y < oy + 60) { goBack(); return; }
+  const rb = restartBtn;
+  if (rb && (state === 'play' || state === 'dead') && x > rb.x - 6 && x < rb.x + rb.w + 6 && y > rb.y - 6 && y < rb.y + rb.h + 6) { restartLevel(); return; }
+  press();
+});
+cv.addEventListener('pointermove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (!ptr || !MENU_STATES.includes(state)) return;
+  const dy = e.clientY - ptr.y;
+  if (Math.abs(dy) > 8 || Math.abs(e.clientX - ptr.x) > 8) ptr.drag = true;
+  if (ptr.drag && state in scrollY) scrollY[state] = Math.max(0, Math.min(maxScroll, ptr.s0 - dy));
+});
+addEventListener('pointerup', e => {
+  if (ptr && MENU_STATES.includes(state) && !ptr.drag) { const k = hitCard(e.clientX, e.clientY); if (k) k.act(); }
+  ptr = null;
+  if (e.pointerType && e.pointerType !== 'mouse') mouse.x = mouse.y = -1;   // no sticky hover on touch
+});
+cv.addEventListener('wheel', e => {
+  if (!(state in scrollY)) return;
+  e.preventDefault(); scrollY[state] = Math.max(0, Math.min(maxScroll, scrollY[state] + e.deltaY));
+}, { passive: false });
+const release = () => { down = false; if (state === 'editor' && ed.drag) edDragEnd(); ed.drag = null; };
+addEventListener('pointerup', release); addEventListener('pointercancel', release);
+addEventListener('keydown', e => {
+  if (guideMode === 'modal') { if (e.code === 'Escape' || e.code === 'KeyH') { e.preventDefault(); setGuide('off'); } return; }
+  if (!edModal.hidden) { if (e.code === 'Escape') edModal.hidden = true; return; }
+  if (!muModal.hidden) { if (e.code === 'Escape') closeMusicPanel(); return; }
+  if (!pubModal.hidden) { if (e.code === 'Escape') pubModal.hidden = true; return; }
+  if (e.target.closest && e.target.closest('input, textarea, select')) return;
+  if (state === 'editor') { edKey(e); return; }
+  if (MENU_STATES.includes(state)) { if (e.code === 'Escape' && state !== 'home') { e.preventDefault(); state = state === 'online' || state === 'menu' ? 'playmenu' : 'home'; } return; }
+  if (e.code === 'KeyR' && !e.repeat) { restartLevel(); return; }
+  if (['Space', 'ArrowUp', 'Enter', 'Escape'].includes(e.code)) {
+    e.preventDefault();
+    if (e.code === 'Escape') goBack(); else if (!e.repeat) press();
+  }
+});
+addEventListener('keyup', release);
+
+// ---- update: fixed-step sim, variable-rate presentation ----
+function update(fdt) {
+  parts.forEach(q => { q.x += q.vx * fdt; q.y += q.vy * fdt; q.life -= fdt; }); parts = parts.filter(q => q.life > 0);
+  flipAnim = Math.max(0, flipAnim - fdt * 6);
+  if (!['play', 'dead', 'win'].includes(state)) musicPause();
+  if (state === 'win') { winT += fdt; return; }
+  if (state === 'dead') { deadT -= fdt; if (deadT <= 0) { respawn(S, deadUp); afterRespawn(); musicSeek(); state = 'play'; } return; }
+  if (state !== 'play') return;
+  if (grace > 0) { grace -= fdt; return; }
+  musicPlay();
+  acc = Math.min(acc + fdt, CONFIG.dt * 8);
+  while (acc >= CONFIG.dt && state === 'play') {
+    acc -= CONFIG.dt;
+    const ev = step(S, { down, pressed: pressQueued });
+    pressQueued = false;
+    onEvents(ev);
+  }
+}
+function onEvents(ev) {
+  const p = S.p;
+  if (S.mode === 'wave') { trail.push({ x: p.x + p.w / 2, y: p.y + p.h / 2 }); if (trail.length > 80) trail.shift(); }
+  else { trail.push({ x: p.x, y: p.y }); if (trail.length > 6) trail.shift(); }
+  for (const e of ev) {
+    if (e === 'flip' || e === 'jump') flipAnim = e === 'flip' ? 1 : 0.6;
+    if (e === 'orb' || e === 'orbBlue') { flipAnim = 0.8; parts.push(...ring((p.x + p.w / 2) * T, (p.y + p.h / 2) * T)); }
+    if (e === 'shrink' || e === 'grow') { flipAnim = 1; burst((p.x + p.w / 2) * T, (p.y + p.h / 2) * T, 10, [50, 60], [0.3, 0.3]); }
+    if (e === 'portal') { trail = []; flipAnim = 1; burst((p.x + p.w / 2) * T, (p.y + p.h / 2) * T, 14, [70, 70], [0.4, 0.4]); }
+    if (e === 'die') { state = 'dead'; deadT = CONFIG.deathDelay; deadUp = S.mode !== 'wave' && p.g < 0; musicPause(); burst((p.x + p.w / 2) * T, (p.y + p.h / 2) * T, 22, [40, 130], [0.5, 0.9]); }
+    if (e === 'win') {
+      state = 'win'; winT = 0;
+      if (curDef && (playCtx.kind === 'custom' || (testing && testFromStart))) { save.verified[curDef.id] = levelHash(curDef); store(); }
+      coinGain = 0;
+      if (testing) { newBest = firstClear = false; continue; }
+      const key = bestKey();
+      firstClear = !best[key]; newBest = !best[key] || S.time < best[key];
+      if (newBest) best[key] = S.time; store();
+      // coins: each reward is paid once; your own levels and editor tests pay nothing
+      const ck = playCtx.kind === 'campaign' ? 'c:' + (hard ? 'h' : 'e') + ':' + LEVEL_DEFS[lvl].id : playCtx.kind === 'online' && !playCtx.own ? 'u:' + playCtx.id : null;
+      if (ck && !save.coinLog[ck]) { coinGain = playCtx.kind === 'campaign' && hard ? 2 : 1; save.coinLog[ck] = 1; save.coins += coinGain; store(); }
+      if (hard) unlockAch('hard');
+    }
+  }
+}
+
+// ---- render ----
+const VW = 427;   // fixed 16:9 play area (427x240 logical px)
+let W, H, dpr, sc, ox, oy, gw, gh;
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 3);
+  W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr;
+  sc = Math.min(H / (CONFIG.rows * T), W / VW); gw = VW * sc; gh = CONFIG.rows * T * sc;
+  ox = (W - gw) / 2; oy = (H - gh) / 2;
+}
+addEventListener('resize', resize); resize();
+
+const skinCol = () => (SKINS.find(k => k.id === save.skin) || SKINS[0]).color;
+function drawPlayer(rx, ry) {
+  const p = S.p, w = p.w * T, h = p.h * T, HERO = skinCol();
+  if (S.mode === 'wave') {
+    if (state === 'play' && trail.length > 1) {
+      ctx.strokeStyle = HERO; ctx.lineWidth = S.mini ? 1.6 : 2.5; ctx.lineCap = 'round';
+      for (let i = 1; i < trail.length; i++) {
+        ctx.globalAlpha = 0.7 * i / trail.length; ctx.beginPath();
+        ctx.moveTo(trail[i - 1].x * T, trail[i - 1].y * T); ctx.lineTo(trail[i].x * T, trail[i].y * T); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (state !== 'dead') {
+      const wc = CONFIG.modes.wave, ang = Math.atan(S.mini ? wc.mini.climb : wc.climb), k = S.mini ? wc.mini.w / wc.w : 1;
+      ctx.save(); ctx.translate(rx + w / 2, ry + h / 2); ctx.rotate(down ? -ang : ang); ctx.scale(k, k); ctx.fillStyle = HERO;
+      ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-5, -6); ctx.lineTo(-2, 0); ctx.lineTo(-5, 6); ctx.fill(); ctx.restore();
+    }
+    return;
+  }
+  if (state === 'play') trail.forEach((t, i) => { ctx.globalAlpha = 0.08 * i; ctx.fillStyle = HERO; ctx.fillRect(t.x * T, t.y * T, w, h); });
+  ctx.globalAlpha = 1;
+  if (state === 'dead') return;
+  const sq = 1 + flipAnim * 0.25;
+  ctx.save(); ctx.translate(rx + w / 2, ry + h / 2); ctx.scale(1 / sq, sq * p.g); ctx.fillStyle = HERO;
+  if (S.mode === 'flip') {
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.fillStyle = C.ink; ctx.fillRect(0, -4, 2, 3); ctx.fillRect(-4, -4, 2, 3); ctx.fillRect(-3, 2, 6, 1.5);
+  } else {   // robot: boxy body, visor, antenna, walking legs
+    const ph = p.ground ? Math.sin(S.time * 30) : 0, la = p.ground ? 3 + ph : 2, lb = p.ground ? 3 - ph : 2;
+    ctx.fillRect(-w / 2, -h / 2, w, h - 4);
+    ctx.fillRect(-1, -h / 2 - 3, 1.5, 3);
+    ctx.fillRect(-w / 2 + 1, h / 2 - 4, 3, la); ctx.fillRect(w / 2 - 4, h / 2 - 4, 3, lb);
+    ctx.fillStyle = C.ink; ctx.fillRect(-1, -h / 2 + 3, 5, 2.5);
+  }
+  ctx.restore();
+}
+
+// corners (x, y in 0..1) of each slope triangle, hypotenuse = first two points
+const SLOPE_PTS = { 11: [[0, 1], [1, 0], [1, 1]], 12: [[0, 0], [1, 1], [0, 1]], 13: [[0, 1], [1, 0], [0, 0]], 14: [[0, 0], [1, 1], [1, 0]] };
+function drawTile(L, t, c, r, palMode) {
+  const x = c * T, y = r * T;
+  if (isPortalTile(t)) {
+    ctx.save(); ctx.globalAlpha *= 0.35 + 0.15 * Math.sin(performance.now() / 180 + r); ctx.fillStyle = PORTAL_COLOR[t];
+    if (t >= TILE.PORTAL_MINI) { ctx.fillRect(x + 3, y, 3, T); ctx.fillRect(x + 10, y, 3, T); }   // size portals: double bar
+    else ctx.fillRect(x + 4, y, 8, T);
+    ctx.restore(); return;
+  }
+  const pal = PAL[palMode];
+  if (t === TILE.SOLID) {
+    ctx.fillStyle = pal.tile; ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = pal.edge;
+    const up = L && L.grid[r - 1] && L.grid[r - 1][c], dn = L && L.grid[r + 1] && L.grid[r + 1][c];
+    if (!L || !(isSolid(L, c, r - 1) || up === TILE.SLOPE_BR || up === TILE.SLOPE_BL)) ctx.fillRect(x, y, T, 2);
+    if (!L || !(isSolid(L, c, r + 1) || dn === TILE.SLOPE_TR || dn === TILE.SLOPE_TL)) ctx.fillRect(x, y + T - 2, T, 2);
+  } else if (isSlopeTile(t)) {
+    const q = SLOPE_PTS[t];
+    ctx.fillStyle = pal.tile; ctx.beginPath(); q.forEach(([u, v], i) => i ? ctx.lineTo(x + u * T, y + v * T) : ctx.moveTo(x + u * T, y + v * T)); ctx.fill();
+    ctx.strokeStyle = pal.edge; ctx.lineWidth = 2; ctx.beginPath();
+    ctx.moveTo(x + q[0][0] * T, y + q[0][1] * T); ctx.lineTo(x + q[1][0] * T, y + q[1][1] * T); ctx.stroke();
+  } else if (isOrbTile(t)) {
+    const cx = x + T / 2, cy = y + T / 2, col = t === TILE.ORB_YELLOW ? ORB_YELLOW_COL : ORB_BLUE_COL;
+    const used = S && (state === 'play' || state === 'dead' || state === 'win') && S.used.includes(';' + c + ',' + r + ';');
+    const pulse = 1 + 0.1 * Math.sin(performance.now() / 160 + c);
+    ctx.save(); if (used) ctx.globalAlpha *= 0.25;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, 6.8 * pulse, 0, 6.29); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(cx, cy, 4.2, 0, 6.29); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(cx - 1.4, cy - 1.4, 1.3, 0, 6.29); ctx.fill();
+    ctx.restore();
+  } else if (isSpikeTile(t)) {
+    ctx.fillStyle = C.spike; ctx.beginPath();
+    if (t === TILE.SPIKE_UP)        { ctx.moveTo(x + 2, y + T); ctx.lineTo(x + T / 2, y + 6); ctx.lineTo(x + T - 2, y + T); }
+    else if (t === TILE.SPIKE_DOWN) { ctx.moveTo(x + 2, y); ctx.lineTo(x + T / 2, y + T - 6); ctx.lineTo(x + T - 2, y); }
+    else if (t === TILE.SPIKE_RIGHT){ ctx.moveTo(x, y + 2); ctx.lineTo(x + T - 6, y + T / 2); ctx.lineTo(x, y + T - 2); }
+    else                            { ctx.moveTo(x + T, y + 2); ctx.lineTo(x + 6, y + T / 2); ctx.lineTo(x + T, y + T - 2); }
+    ctx.fill();
+  }
+}
+function drawTiles(L, cam, vw) {
+  for (let r = 0; r < L.rows; r++) for (let c = Math.max(0, Math.floor(cam / T)); c <= Math.ceil((cam + vw) / T) && c < L.cols; c++) {
+    const t = L.grid[r][c]; if (t) drawTile(L, t, c, r, L.zone[c]);
+  }
+}
+
+function draw() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  cards = []; cardsState = state;
+  if (edUI.hidden !== (state !== 'editor')) edUI.hidden = state !== 'editor';   // toolbar only on the editor screen
+  if (guideMode !== 'modal') setGuide(state === 'mylevels' && guideShown && W >= GUIDE_DOCK_W ? 'dock' : 'off');
+  else if (state !== 'editor' && state !== 'mylevels') setGuide('off');
+  if (state !== 'online' && !olSearch.hidden) { olSearch.hidden = true; olSearch.blur(); }
+  if (state === 'home') { drawHome(); return; }
+  if (state === 'playmenu') { drawPlayMenu(); return; }
+  if (state === 'menu') { drawMenu(); return; }
+  if (state === 'settings') { drawSettings(); return; }
+  if (state === 'shop') { drawShop(); return; }
+  if (state === 'mylevels') { drawMyLevels(); return; }
+  if (state === 'online') { drawOnline(); return; }
+  if (state === 'editor') { drawEditor(); return; }
+  const p = S.p, a = state === 'play' && grace <= 0 ? acc / CONFIG.dt : 1;
+  const rx = (p.px + (p.x - p.px) * a) * T, ry = (p.py + (p.y - p.py) * a) * T;
+  const vw = VW, cam = Math.max(0, Math.min(L.cols * T - vw, rx - vw * 0.28));
+  ctx.save(); ctx.beginPath(); ctx.rect(ox, oy, gw, gh); ctx.clip();
+  ctx.fillStyle = '#1a1648'; ctx.fillRect(ox, oy, gw, gh);
+  ctx.fillStyle = '#3a3590';
+  stars.forEach(s => { const x = ((s.x * 3 - cam * s.z) % (vw + 20) + vw + 20) % (vw + 20); ctx.fillRect(ox + x * sc, oy + s.y * sc, 3 * sc * s.z, 3 * sc * s.z); });
+  ctx.save(); ctx.translate(ox - cam * sc, oy); ctx.scale(sc, sc);
+  drawTiles(L, cam, vw);
+  // checkpoints + goal
+  L.checkpoints.forEach((cpt, i) => {
+    if (i === 0 || S.hard) return;
+    ctx.fillStyle = i <= S.cp ? C.hero : '#5a5a9a';
+    ctx.fillRect(cpt.x * T + 7, 13 * T - 12, 2, 12); ctx.fillRect(cpt.x * T + 9, 13 * T - 12, 7, 5);
+  });
+  ctx.fillStyle = C.flag; ctx.fillRect(L.goal * T, 4 * T, 3, 9 * T); ctx.fillRect(L.goal * T + 3, 4 * T, 20, 12);
+  drawPlayer(rx, ry);
+  ctx.fillStyle = skinCol(); parts.forEach(q => { ctx.globalAlpha = Math.max(0, q.life * 1.6); ctx.fillRect(q.x, q.y, 3, 3); });
+  ctx.globalAlpha = 1; ctx.restore(); ctx.restore();
+
+  // HUD + overlays
+  const hy = oy + 26, hx = ox + 14, hr = ox + gw - 14, cxm = ox + gw / 2;
+  ctx.fillStyle = C.text; ctx.font = 'bold 15px "Courier New", monospace';
+  ctx.textAlign = 'left'; ctx.fillText(backLabel(), hx, hy);
+  ctx.textAlign = 'center'; ctx.fillText('deaths ' + S.deaths + (S.hard ? '  [hard]' : ''), cxm, hy);
+  ctx.textAlign = 'right'; ctx.fillText(S.time.toFixed(1) + 's', hr, hy);
+  // restart button, just left of the timer (also the R key)
+  restartBtn = null;
+  if (state === 'play' || state === 'dead') {
+    const bw = 30, bh = 26, bx = hr - ctx.measureText('000.0s').width - 12 - bw, by = hy - 18;
+    const on = mouse.x > bx && mouse.x < bx + bw && mouse.y > by && mouse.y < by + bh;
+    restartBtn = { x: bx, y: by, w: bw, h: bh };
+    ctx.save(); rr(bx, by, bw, bh, 6); ctx.fillStyle = on ? 'rgba(42,38,112,0.95)' : 'rgba(18,15,51,0.75)'; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = on ? C.text : 'rgba(233,230,255,0.45)'; ctx.stroke();
+    const cx = bx + bw / 2, cy = by + bh / 2;   // circular arrow
+    ctx.strokeStyle = C.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, 6.5, -Math.PI * 0.35, Math.PI * 1.45); ctx.stroke();
+    const ax = cx + 6.5 * Math.cos(-Math.PI * 0.35), ay = cy + 6.5 * Math.sin(-Math.PI * 0.35);
+    ctx.fillStyle = C.text; ctx.beginPath(); ctx.moveTo(ax + 4, ay - 3); ctx.lineTo(ax + 1, ay + 4); ctx.lineTo(ax - 4, ay - 2); ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = C.text; ctx.font = 'bold 15px "Courier New", monospace';
+  }
+  ctx.textAlign = 'center';
+  if (state === 'play' && S.time < 0.1 && grace > 0) {
+    ctx.font = '14px "Courier New", monospace'; ctx.fillStyle = PAL[S.mode].label;
+    ctx.fillText(L.name + ' - ' + HINT[S.mode], cxm, oy + gh * 0.14);
+  }
+  if (state === 'win') {
+    ctx.fillStyle = C.text; ctx.font = 'bold 28px "Courier New", monospace'; ctx.fillText('Level clear', cxm, oy + gh * 0.34);
+    ctx.font = '16px "Courier New", monospace';
+    ctx.fillText(S.time.toFixed(1) + 's with ' + S.deaths + (S.deaths === 1 ? ' death' : ' deaths') + (newBest ? ' (best!)' : ''), cxm, oy + gh * 0.34 + 30);
+    const gains = [];
+    if (firstClear && playCtx.kind === 'campaign') gains.push((hard ? 'Hard' : 'Easy') + ' badge earned!');
+    if (coinGain) gains.push('+' + coinGain + (coinGain === 1 ? ' coin' : ' coins'));
+    if (gains.length) { ctx.fillStyle = C.flag; ctx.fillText(gains.join('   '), cxm, oy + gh * 0.34 + 56); }
+    if (winT > 0.6) { ctx.fillStyle = C.hero; ctx.fillText(testing ? 'tap to return to the editor' : playCtx.kind === 'custom' ? 'tap to return to my levels' : playCtx.kind === 'online' ? 'tap to return to user levels' : lvl + 1 < LEVEL_DEFS.length ? 'tap for next level' : 'tap for level select', cxm, oy + gh * 0.34 + 84); }
+  }
+}
+
+function rotateHint() {
+  if (H <= W * 1.1) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = 'rgba(10,8,30,0.9)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.font = 'bold 20px "Courier New", monospace'; ctx.fillText('Rotate your device', W / 2, H / 2);
+  ctx.font = '14px "Courier New", monospace'; ctx.fillText('this game plays in landscape', W / 2, H / 2 + 26);
+}
+
+// ---- editor guide panel ----
+const guideWrap = document.getElementById('guide-wrap'), GUIDE_DOCK_W = 900;
+let guideMode = 'off', guideShown = false;   // the docked guide on My Levels is hidden until asked for
+function setGuide(m) {
+  if (m === guideMode) return;
+  guideMode = m; guideWrap.hidden = m === 'off'; guideWrap.className = m === 'off' ? '' : m;
+}
+guideWrap.addEventListener('click', e => {
+  if (e.target.closest('[data-guide=close]')) { guideShown = false; setGuide('off'); }
+  else if (guideMode === 'modal' && e.target === guideWrap) setGuide('off');
+});
+
+// ============================== MENUS ==============================
+// Screens: home -> menu (campaign levels) | mylevels (custom levels + editor) | settings
+const HEADER = 64;
+const ORANGE = '#ffb36b', MUTED = '#9a96d8', LINE = '#3a3590', PANEL = '#1e1b55', PANEL_HI = '#2a2670';
+let armed = null;   // two-tap confirm for destructive buttons
+const isArmed = k => armed && armed.k === k && performance.now() - armed.t < 3000;
+const arm = (k, fn) => { if (isArmed(k)) { armed = null; fn(); } else armed = { k, t: performance.now() }; };
+const hov = (x, y, w, h, minY = 0) => mouse.x > x && mouse.x < x + w && mouse.y > y && mouse.y < y + h && mouse.y >= minY;
+const font = (size, bold) => { ctx.font = (bold ? 'bold ' : '') + size + 'px "Courier New", monospace'; };
+function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+function fitText(t, maxW) {
+  if (ctx.measureText(t).width <= maxW) return t;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
+}
+function button(x, y, w, h, label, o, act) {
+  o = o || {}; const col = o.color || C.hero, on = hov(x, y, w, h, o.minY);
+  rr(x, y, w, h, 6);
+  ctx.fillStyle = o.solid ? col : on ? PANEL_HI : PANEL; ctx.globalAlpha = o.solid && !on ? 0.88 : 1; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = 1.5; ctx.strokeStyle = on || o.solid || o.accent ? col : LINE; ctx.stroke();
+  ctx.fillStyle = o.solid ? C.ink : (o.accent || on) ? col : C.text;
+  font(o.size || 13, true); ctx.textAlign = 'center'; ctx.fillText(label, x + w / 2, y + h / 2 + (o.size || 13) * 0.35);
+  cards.push({ x, y, w, h, act, minY: o.minY || 0 });
+}
+function header(title, back = 'home') {
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, HEADER);
+  ctx.fillStyle = '#25205e'; ctx.fillRect(0, HEADER - 1, W, 1);
+  font(W < 520 ? 17 : 22, true); ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.fillText(title, W / 2, 39);
+  button(14, 15, 80, 34, '‹ back', {}, () => { state = back; });
+}
+function difficulty(x, y) {
+  [['easy', false, C.hero], ['hard', true, C.spike]].forEach(([t, v, col], i) =>
+    button(x + i * 64, y, 60, 34, t, { solid: hard === v, color: col }, () => { hard = v; }));
+}
+function backdrop() {
+  const t = performance.now() / 1000;
+  ctx.fillStyle = '#2c2878';
+  stars.forEach(s => {
+    const x = ((s.x / 600 * W - t * s.z * 18) % W + W) % W, y = s.y / 240 * H;
+    ctx.fillRect(x, y, 3 * s.z * 1.4, 3 * s.z * 1.4);
+  });
+}
+function vscroll(key, contentBottom) {
+  maxScroll = Math.max(0, contentBottom - H + 16);
+  scrollY[key] = Math.max(0, Math.min(maxScroll, scrollY[key]));
+  return scrollY[key];
+}
+
+// ---- home ----
+function drawIcon(kind, cx, cy, s, bg) {
+  ctx.beginPath();
+  if (kind === 'play') { ctx.moveTo(cx - s * 0.65, cy - s); ctx.lineTo(cx + s, cy); ctx.lineTo(cx - s * 0.65, cy + s); ctx.closePath(); ctx.fill(); }
+  else if (kind === 'edit') {
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(Math.PI * 0.75);
+    ctx.fillRect(-s * 0.9, -s * 0.3, s * 1.4, s * 0.6);
+    ctx.beginPath(); ctx.moveTo(s * 0.62, -s * 0.3); ctx.lineTo(s * 1.1, 0); ctx.lineTo(s * 0.62, s * 0.3); ctx.fill();
+    ctx.fillStyle = bg; ctx.fillRect(-s * 0.6, -s * 0.3, s * 0.12, s * 0.6);
+    ctx.restore();
+  } else if (kind === 'classic') {   // a little stack of level tiles
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) { rr(cx - s * 1.05 + i * s * 0.75, cy - s * 0.7 + j * s * 0.75, s * 0.6, s * 0.6, s * 0.12); ctx.fill(); }
+  } else if (kind === 'globe') {
+    ctx.save(); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = Math.max(2, s * 0.16);
+    ctx.beginPath(); ctx.arc(cx, cy, s, 0, 6.29); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy, s * 0.45, s, 0, 0, 6.29); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - s, cy); ctx.lineTo(cx + s, cy); ctx.stroke();
+    ctx.restore();
+  } else {   // gear
+    for (let i = 0; i < 8; i++) { ctx.save(); ctx.translate(cx, cy); ctx.rotate(i * Math.PI / 4); ctx.fillRect(-s * 0.2, -s * 1.0, s * 0.4, s * 0.5); ctx.restore(); }
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.72, 0, 6.29); ctx.fill();
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(cx, cy, s * 0.3, 0, 6.29); ctx.fill();
+  }
+}
+function bigButton(x, y, w, h, label, col, icon, act) {
+  const on = hov(x, y, w, h), yy = y - (on ? 3 : 0), bg = on ? PANEL_HI : PANEL;
+  rr(x, yy, w, h, 14); ctx.fillStyle = bg; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = on ? col : LINE; ctx.stroke();
+  ctx.fillStyle = col; rr(x + w * 0.32, yy + h - 9, w * 0.36, 3, 1.5); ctx.fill();
+  const s = Math.min(w, h) * 0.17;
+  ctx.fillStyle = col; drawIcon(icon, x + w / 2, yy + h * 0.4, s, bg);
+  font(Math.max(13, Math.min(20, w / 8)), true); ctx.textAlign = 'center'; ctx.fillStyle = on ? col : C.text;
+  ctx.fillText(label, x + w / 2, yy + h * 0.77);
+  cards.push({ x, y, w, h, act });
+}
+function drawHome() {
+  backdrop();
+  const ts = Math.max(26, Math.min(54, W / 12));
+  const titleY = Math.max(ts + 10, H * 0.2);
+  font(ts, true); ctx.textAlign = 'center'; ctx.fillStyle = C.text; ctx.fillText('ROBO RUNNER', W / 2, titleY);
+  // PLAY sits in the middle and is the biggest; EDIT and SETTINGS flank it
+  const gap = Math.min(22, W * 0.025), bw = Math.min(210, (W - 40 - 2 * gap) / 3.3), pw = bw * 1.3;
+  const y0 = titleY + 44, ph = Math.max(100, Math.min(190, H - y0 - 50)), bh = ph * 0.82, sy = y0 + (ph - bh) / 2;
+  const x0 = (W - (2 * bw + pw + 2 * gap)) / 2;
+  bigButton(x0, sy, bw, bh, 'EDIT', ORANGE, 'edit', () => { state = 'mylevels'; });
+  bigButton(x0 + bw + gap, y0, pw, ph, 'PLAY', C.hero, 'play', () => { state = 'playmenu'; });
+  bigButton(x0 + bw + pw + 2 * gap, sy, bw, bh, 'SETTINGS', '#8e9bff', 'gear', () => { state = 'settings'; });
+  const bh0 = ph;
+  coinCount(W - 18, 30);
+  font(15, true); const cw0 = ctx.measureText(String(save.coins)).width;
+  button(W - 18 - cw0 - 26 - 104, 13, 96, 34, 'skins', { accent: true, color: C.flag }, () => { state = 'shop'; });
+  const n = LEVEL_DEFS.length, done = LEVEL_DEFS.filter((_, i) => best['e' + i] || best['h' + i]).length,
+    hardDone = LEVEL_DEFS.filter((_, i) => best['h' + i]).length;
+  font(12); ctx.textAlign = 'center'; ctx.fillStyle = MUTED;
+  ctx.fillText(done + ' / ' + n + ' levels cleared  ·  ' + hardDone + ' on hard' + (save.debug ? '  ·  debug on' : ''), W / 2, Math.min(H - 14, y0 + bh0 + 32));
+}
+// ---- play: classic (built-in) levels or user levels (online) ----
+function drawPlayMenu() {
+  backdrop();
+  header('PLAY');
+  const gap = Math.min(28, W * 0.03), bw = Math.min(300, (W - 40 - gap) / 2), bh = Math.max(110, Math.min(220, H - HEADER - 120));
+  const x0 = (W - (2 * bw + gap)) / 2, y0 = HEADER + Math.max(24, (H - HEADER - bh - 40) / 2);
+  bigButton(x0, y0, bw, bh, 'CLASSIC LEVELS', C.hero, 'classic', () => { state = 'menu'; });
+  bigButton(x0 + bw + gap, y0, bw, bh, 'USER LEVELS', '#8e9bff', 'globe', openOnline);
+  const n = LEVEL_DEFS.length, done = LEVEL_DEFS.filter((_, i) => best['e' + i] || best['h' + i]).length;
+  font(12); ctx.textAlign = 'center'; ctx.fillStyle = MUTED;
+  ctx.fillText(fitText(done + ' / ' + n + ' cleared', bw), x0 + bw / 2, y0 + bh + 26);
+  ctx.fillText(fitText(onlineReady() ? 'levels made by players' : 'online not set up yet', bw), x0 + bw * 1.5 + gap, y0 + bh + 26);
+}
+
+// ---- level select ----
+function badge(x, y, on, isHard) {
+  ctx.beginPath(); ctx.arc(x, y, 9, 0, 6.28);
+  if (on) { ctx.fillStyle = isHard ? C.flag : C.hero; ctx.fill(); ctx.fillStyle = C.ink; }
+  else { ctx.strokeStyle = '#4a4690'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = '#4a4690'; }
+  font(10, true); ctx.textAlign = 'center'; ctx.fillText(isHard ? 'H' : 'E', x, y + 3.5);
+}
+function drawMenu() {
+  const n = LEVEL_DEFS.length, colsN = W > 1000 ? 4 : W > 620 ? 3 : W > 400 ? 2 : 1, rows = Math.ceil(n / colsN);
+  const cw = (Math.min(W, 1200) - 32 - 10 * (colsN - 1)) / colsN, ch = 62;
+  const gx = (W - (cw * colsN + 10 * (colsN - 1))) / 2, top = HEADER + 40, gridW = cw * colsN + 10 * (colsN - 1);
+  const sc0 = vscroll('menu', top + rows * (ch + 10));
+  ctx.save(); ctx.beginPath(); ctx.rect(0, HEADER, W, H - HEADER); ctx.clip();
+  font(12); ctx.textAlign = 'center'; ctx.fillStyle = MUTED;
+  ctx.fillText(fitText(hard ? 'hard: no checkpoints · every death restarts the level' : 'easy: checkpoints on · beat a level to unlock the next', gridW), W / 2, HEADER + 25 - sc0);
+  LEVEL_DEFS.forEach((lv, i) => {
+    const x = gx + (i % colsN) * (cw + 10), y = top + Math.floor(i / colsN) * (ch + 10) - sc0, pal = PAL[lv.mode], open = unlocked(i);
+    const on = open && hov(x, y, cw, ch, HEADER);
+    ctx.globalAlpha = open ? 1 : 0.45;
+    rr(x, y, cw, ch, 8); ctx.fillStyle = on ? PANEL_HI : pal.card; ctx.fill();
+    if (on) { ctx.lineWidth = 1.5; ctx.strokeStyle = pal.edge; ctx.stroke(); }
+    ctx.fillStyle = pal.edge; rr(x, y, 4, ch, 2); ctx.fill();
+    ctx.textAlign = 'left'; ctx.fillStyle = C.text; font(15, true);
+    ctx.fillText(fitText((i + 1) + '. ' + lv.name, cw - 90), x + 14, y + ch / 2 - 3);
+    font(12);
+    if (open) { ctx.fillStyle = pal.label; ctx.fillText(lv.label || (lv.mode + ' mode'), x + 14, y + ch / 2 + 15); }
+    else { ctx.fillStyle = MUTED; ctx.fillText('locked \u00B7 beat level ' + i, x + 14, y + ch / 2 + 15); }
+    const bt = best[(hard ? 'h' : 'e') + i];
+    ctx.textAlign = 'right'; ctx.fillStyle = bt ? C.flag : '#5a5a9a'; font(13, true);
+    ctx.fillText(bt ? bt.toFixed(1) + 's' : '--', x + cw - 12, y + ch / 2 - 5);
+    badge(x + cw - 46, y + ch / 2 + 12, !!best['e' + i], false); badge(x + cw - 22, y + ch / 2 + 12, !!best['h' + i], true);
+    ctx.globalAlpha = 1;
+    cards.push({ x, y, w: cw, h: ch, minY: HEADER, act: () => { if (open) startLevel(i); } });
+  });
+  ctx.restore();
+  header('CLASSIC LEVELS', 'playmenu');
+  difficulty(W - 14 - 124, 15);
+}
+
+// ---- settings ----
+function toggle(x, y, on, col) {
+  rr(x, y, 50, 26, 13); ctx.fillStyle = on ? col : '#2a2660'; ctx.fill();
+  ctx.fillStyle = on ? C.ink : MUTED; ctx.beginPath(); ctx.arc(on ? x + 37 : x + 13, y + 13, 9, 0, 6.29); ctx.fill();
+}
+function settingRow(y, w, title, desc, drawControl, act) {
+  const x = (W - w) / 2, h = 66, on = hov(x, y, w, h);
+  rr(x, y, w, h, 10); ctx.fillStyle = on ? PANEL_HI : PANEL; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = LINE; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.fillStyle = C.text; font(15, true); ctx.fillText(title, x + 18, y + 28);
+  font(12); ctx.fillStyle = MUTED; ctx.fillText(fitText(desc, w - 150), x + 18, y + 48);
+  drawControl(x + w - 18, y + h / 2);
+  cards.push({ x, y, w, h, act, minY: HEADER });
+}
+function drawSettings() {
+  const w = Math.min(600, W - 32), sc0 = vscroll('settings', HEADER + 24 + 4 * 80 + 40 + ACHIEVEMENTS.length * 70 + 60);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, HEADER, W, H - HEADER); ctx.clip();
+  let y = HEADER + 24 - sc0;
+  settingRow(y, w, 'Debug mode', 'Unlock every level, for testing.',
+    (rx, cy) => toggle(rx - 50, cy - 13, save.debug, C.flag), () => { save.debug = !save.debug; store(); });
+  y += 80;
+  settingRow(y, w, 'Auto-save in editor', autosaveOn() ? 'Levels save as you edit.' : 'Off: use the save button (Ctrl+S) in the editor.',
+    (rx, cy) => toggle(rx - 50, cy - 13, autosaveOn(), C.hero), () => { save.autosave = !autosaveOn(); store(); });
+  y += 80;
+  settingRow(y, w, 'Level music', musicEnabled() ? 'Plays the songs added to levels in the editor.' : 'Off: levels play silently.',
+    (rx, cy) => toggle(rx - 50, cy - 13, musicEnabled(), ORANGE), () => { save.music = !musicEnabled(); store(); });
+  y += 80;
+  const armedReset = isArmed('reset');
+  settingRow(y, w, 'Reset progress', 'Clears best times and badges. Coins, skins and your levels stay.', (rx, cy) => {
+    rr(rx - 96, cy - 15, 96, 30, 6); ctx.fillStyle = armedReset ? C.spike : PANEL; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = C.spike; ctx.stroke();
+    ctx.fillStyle = armedReset ? C.ink : C.spike; font(12, true); ctx.textAlign = 'center';
+    ctx.fillText(armedReset ? 'tap again' : 'reset', rx - 48, cy + 4);
+  }, () => arm('reset', () => { Object.keys(best).forEach(k => delete best[k]); store(); }));
+  y = drawAchievements(y + 90, w);
+  font(11); ctx.fillStyle = '#5a5a9a'; ctx.textAlign = 'center';
+  ctx.fillText('Robo Runner prototype · levels use the levels.json format', W / 2, y + 24);
+  ctx.restore();
+  header('SETTINGS');
+}
+
+// ---- my levels (custom levels + editor entry) ----
+function drawMyLevels() {
+  const canDock = W >= GUIDE_DOCK_W, dock = canDock && guideShown, avail = dock ? W - Math.min(360, W * 0.36) - 48 : W - 28;
+  const w = Math.min(760, avail), x = dock ? 16 + (avail - w) / 2 : (W - w) / 2, top = HEADER + 56, rowH = 60, narrow = w < 560;
+  const sc0 = vscroll('mylevels', top + customs.length * (rowH + 8));
+  ctx.save(); ctx.beginPath(); ctx.rect(0, HEADER, W, H - HEADER); ctx.clip();
+  // toolbar row
+  const ty = HEADER + 12 - sc0;
+  button(x, ty, narrow ? 104 : 132, 34, '+ new level', { solid: true, color: ORANGE, minY: HEADER }, () => openEditor(newLevelDef()));
+  button(x + (narrow ? 112 : 140), ty, 84, 34, 'import', { minY: HEADER }, () => openJson(true));
+  button(x + (narrow ? 204 : 232), ty, narrow ? 74 : 112, 34, narrow ? 'guide' : dock ? 'hide guide' : 'show guide', { minY: HEADER, accent: true, color: ORANGE, solid: dock },
+    () => { if (canDock) guideShown = !guideShown; else setGuide('modal'); });
+  font(12); ctx.fillStyle = MUTED; ctx.textAlign = 'right';
+  if (!narrow && w > 680) ctx.fillText(customs.length + (customs.length === 1 ? ' level' : ' levels') + ' · plays on', x + w - 132, ty + 22);
+  difficulty(x + w - 124, ty);
+  if (!customs.length) {
+    font(14); ctx.textAlign = 'center'; ctx.fillStyle = MUTED;
+    ctx.fillText('No levels yet.', x + w / 2, top + 50 - sc0);
+    font(12); ctx.fillText(fitText('Tap "+ new level" to build one, or import a level JSON.', w), x + w / 2, top + 74 - sc0);
+  }
+  const bw = narrow ? [44, 46, 54, 50] : [70, 60, 80, 74];
+  customs.forEach((d, i) => {
+    const y = top + i * (rowH + 8) - sc0, pal = PAL[d.mode] || PAL.flip;
+    rr(x, y, w, rowH, 8); ctx.fillStyle = pal.card; ctx.fill();
+    ctx.fillStyle = pal.edge; rr(x, y, 4, rowH, 2); ctx.fill();
+    const btnsW = bw[0] + bw[1] + bw[2] + bw[3] + 24, textW = w - btnsW - 36;
+    ctx.textAlign = 'left'; ctx.fillStyle = C.text; font(15, true); ctx.fillText(fitText(d.name, textW), x + 16, y + 26);
+    const bt = best[(hard ? 'h' : 'e') + ':' + d.id];
+    font(12); ctx.fillStyle = pal.label;
+    ctx.fillText(fitText(d.mode + ' start · ' + d.cols + ' cols · ' + (d.music ? '\u266B · ' : '') + (d.onlineId ? 'online · ' : '') + (bt ? 'best ' + bt.toFixed(1) + 's' : 'not cleared'), textW), x + 16, y + 45);
+    let bx = x + w - 12 - btnsW; const by = y + 13, o = { minY: HEADER };
+    button(bx, by, bw[0], 34, narrow ? '▶' : '▶ play', { ...o, solid: true }, () => playCustom(d)); bx += bw[0] + 8;
+    button(bx, by, bw[1], 34, 'edit', { ...o, accent: true, color: ORANGE }, () => openEditor(d)); bx += bw[1] + 8;
+    button(bx, by, bw[2], 34, narrow ? 'share' : d.onlineId ? 'update' : 'publish', { ...o, accent: true, color: '#8e9bff' }, () => openPublish(d)); bx += bw[2] + 8;
+    const k = 'del:' + d.id, sure = isArmed(k);
+    button(bx, by, bw[3], 34, sure ? 'sure?' : narrow ? 'del' : 'delete', { ...o, accent: true, color: C.spike, solid: sure },
+      () => arm(k, () => { const j = customs.findIndex(c => c.id === d.id); if (j >= 0) { customs.splice(j, 1); storeCustoms(); MusicStore.del(d.id); } }));
+  });
+  ctx.restore();
+  header('MY LEVELS');
+}
+
+// ============================== LEVEL EDITOR ==============================
+// Edits a level in the tile-row format (the levels.json schema), so anything made here also loads in Unity.
+const edUI = document.getElementById('ed-ui'), edModal = document.getElementById('ed-modal');
+const $ = id => document.getElementById(id);
+const CUSTOM_KEY = 'flipRunnerLevels';
+let customs = [];
+try { customs = JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch (e) {}
+const storeCustoms = () => { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(customs)); } catch (e) {} };
+const slug = n => (n || 'level').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'level';
+function uniqueId(name) {
+  const base = slug(name); let id = base, n = 2;
+  while (customs.some(c => c.id === id)) id = base + '-' + n++;
+  return id;
+}
+function newLevelDef() {   // a fresh level, saved straight into "my levels"
+  let n = customs.length + 1; while (customs.some(c => c.name === 'Level ' + n)) n++;
+  const def = { id: uniqueId('level ' + n), name: 'Level ' + n, mode: 'flip', cols: 100, goal: 94, checkpoints: [{ x: 2, y: 7 }], ops: [] };
+  const Lc = compileLevel(def);
+  def.portals = []; def.tiles = Lc.grid.map(r => r.map(t => TILE_CHARS[t]).join('')); delete def.ops;
+  customs.unshift(def); storeCustoms();
+  return def;
+}
+
+const TOOLS = [
+  { id: 'pan', label: '\u270B', key: '1', tip: 'pan the view (also: right-drag, scroll wheel, arrow keys)' },
+  { id: 'select', label: '\u2B1A', key: '2', tip: 'select: click an object or drag a box; drag the selection to move it; Q/E rotate, Delete removes, Ctrl+C / Ctrl+V / Ctrl+D copy, paste, duplicate' },
+  { id: 'solid', label: '\u25A0', key: '3', tip: 'block' },
+  { id: 'spike', label: '\u25B2', key: '4', tip: 'spike (Q/E rotates it)' },
+  { id: 'slope', label: '\u25E2', key: '5', tip: 'slope: a ramp for flip and robot, deadly for the wave (Q/E rotates it)' },
+  { id: 'erase', label: '\u232B', key: '6', tip: 'erase (erasing a portal removes the whole column)' },
+  { id: 'flip', label: 'F', key: '7', tip: 'flip portal (whole column)' },
+  { id: 'wave', label: 'W', key: '8', tip: 'wave portal; the wave enters on the row you click' },
+  { id: 'robot', label: 'R', key: '9', tip: 'robot portal (whole column)' },
+  { id: 'mini', label: 'mini', key: '[', tip: 'mini portal (whole column): the wave becomes small and steep' },
+  { id: 'normal', label: 'norm', key: ']', tip: 'normal-size portal (whole column): the wave goes back to normal' },
+  { id: 'start', label: 'S', key: '0', tip: 'start position (row matters in wave mode)' },
+  { id: 'cp', label: '\u2691', key: '-', tip: 'add / remove a checkpoint' },
+  { id: 'goal', label: 'G', key: '=', tip: 'goal flag' },
+  { id: 'orbY', label: '\u25CF', key: 'o', color: ORB_YELLOW_COL, tip: 'yellow orb: tap while touching it in mid-air for a small jump (flip, robot)' },
+  { id: 'orbB', label: '\u25CF', key: 'p', color: ORB_BLUE_COL, tip: 'blue orb: tap while touching it in mid-air to flip gravity (flip, robot)' },
+];
+const KEY_CODE = { '-': 'Minus', '=': 'Equal', '[': 'BracketLeft', ']': 'BracketRight', o: 'KeyO', p: 'KeyP' };
+const TOOL_KEYS = Object.fromEntries(TOOLS.map((t, i) => [KEY_CODE[t.key] || 'Digit' + t.key, i]));
+// rotatable brushes: index = number of 90deg clockwise turns
+const BRUSH = {
+  spike: { tiles: [TILE.SPIKE_UP, TILE.SPIKE_RIGHT, TILE.SPIKE_DOWN, TILE.SPIKE_LEFT], labels: ['\u25B2', '\u25B6', '\u25BC', '\u25C0'] },
+  slope: { tiles: [TILE.SLOPE_BR, TILE.SLOPE_BL, TILE.SLOPE_TL, TILE.SLOPE_TR], labels: ['\u25E2', '\u25E3', '\u25E4', '\u25E5'] },
+};
+const brushTile = t => t === 'solid' ? TILE.SOLID : t === 'orbY' ? TILE.ORB_YELLOW : t === 'orbB' ? TILE.ORB_BLUE : BRUSH[t] ? BRUSH[t].tiles[ed.rot[t]] : undefined;
+const selectable = t => t === TILE.SOLID || isSpikeTile(t) || isSlopeTile(t) || isOrbTile(t);   // portals and markers have their own tools
+const SIZE_TILE = { mini: TILE.PORTAL_MINI, normal: TILE.PORTAL_NORMAL };
+const ed = { rot: { spike: 0, slope: 0 }, sel: new Set(), clip: null, grid: null, meta: null, L: null, tool: 'solid', cam: 0, undo: [], redo: [], dirty: false, drag: null, hover: null, status: '', stuckX: -1, checkId: 0, saveT: 0 };
+
+// ---- model ----
+function edDef() {
+  const m = ed.meta;
+  return { id: m.id, name: m.name, label: m.label || '', mode: m.mode, cols: m.cols, goal: m.goal,
+    checkpoints: m.checkpoints.map(c => ({ x: c.x, y: c.y })), portals: m.portals.map(q => ({ x: q.x, mode: q.mode, row: q.row })),
+    tiles: ed.grid.map(r => r.map(t => TILE_CHARS[t]).join('')),
+    ...(m.music ? { music: { name: m.music.name, offset: m.music.offset || 0 } } : {}), ...(m.onlineId ? { onlineId: m.onlineId } : {}) };
+}
+function edLoad(def, keepCam) {
+  const Lc = compileLevel(def);
+  ed.grid = Lc.grid.map(r => r.slice());
+  ed.meta = { id: def.id || uniqueId(def.name), name: def.name || 'My Level', label: def.label || '', mode: def.mode || 'flip',
+    cols: Lc.cols, goal: Lc.goal, checkpoints: Lc.checkpoints.map(c => ({ x: c.x, y: c.y })),
+    portals: Lc.portals.map(q => ({ x: q.x, mode: q.mode, row: q.row })),
+    music: def.music ? { name: def.music.name, offset: def.music.offset || 0 } : null, onlineId: def.onlineId || null };
+  if (!keepCam) { ed.cam = 0; ed.undo = []; ed.redo = []; ed.sel = new Set(); }
+  else ed.sel = new Set([...ed.sel].filter(k => { const [c, r] = k.split(',').map(Number); return ed.grid[r] && selectable(ed.grid[r][c]); }));
+  edRefresh();
+}
+function edRefresh() {
+  ed.L = compileLevel(edDef()); ed.stuckX = -1; ed.checkId++;
+  if (ed.status.startsWith('checking') || ed.status.startsWith('✓') || ed.status.startsWith('✗')) ed.status = '';
+  edSync();
+  edChanged();
+}
+// the editor always works on a slot in "my levels"; with auto-save on it saves as you go
+const autosaveOn = () => save.autosave !== false;
+function edChanged() {
+  ed.dirty = true;
+  if (autosaveOn()) edScheduleSave(); else $('ed-saved').textContent = '\u25CF unsaved';
+}
+function edSaveNow() { edFlush(); if (ed.status === 'unsaved changes: press save, or done again to discard them') setStatus(''); }
+function edScheduleSave() { clearTimeout(ed.saveT); $('ed-saved').textContent = 'saving\u2026'; ed.saveT = setTimeout(edFlush, 400); }
+function edFlush() {
+  clearTimeout(ed.saveT); if (!ed.meta) return;
+  const def = edDef(), i = customs.findIndex(d => d.id === def.id);
+  if (i >= 0) customs[i] = def; else customs.unshift(def);
+  storeCustoms(); ed.dirty = false; if (isArmed('leave')) armed = null; $('ed-saved').textContent = '\u2713 saved';
+}
+// undo/redo: snapshots of the whole level; any new edit clears the redo stack
+function edPushUndo(snap) { ed.undo.push(snap); if (ed.undo.length > 80) ed.undo.shift(); ed.redo = []; }
+function edSnapshot() { edPushUndo(JSON.stringify(edDef())); }
+function edRestore(from, to, verb) {
+  const s = from.pop(); if (!s) { setStatus('nothing to ' + verb); return; }
+  to.push(JSON.stringify(edDef())); edLoad(JSON.parse(s), true); setStatus(verb === 'undo' ? 'undone' : 'redone');
+}
+function edUndo() { edRestore(ed.undo, ed.redo, 'undo'); }
+function edRedo() { edRestore(ed.redo, ed.undo, 'redo'); }
+function setStatus(t) { ed.status = t; $('ed-status').textContent = t; }
+
+function removePortal(c) {
+  ed.meta.portals = ed.meta.portals.filter(q => q.x !== c);
+  for (let r = 1; r < CONFIG.rows - 1; r++) if (isPortalTile(ed.grid[r][c])) ed.grid[r][c] = TILE.EMPTY;
+}
+function edApply(c, r, first) {
+  const m = ed.meta, g = ed.grid, R = CONFIG.rows;
+  if (c < 0 || c >= m.cols || r < 0 || r >= R) return false;
+  const inner = r >= 1 && r <= R - 2, rr = Math.max(1, Math.min(R - 2, r));
+  const t = ed.tool;
+  const bt = brushTile(t);
+  if (bt !== undefined) {
+    if (!inner || g[r][c] === bt) return false;
+    g[r][c] = bt;
+  } else if (t === 'erase') {
+    if (!inner || g[r][c] === TILE.EMPTY) return false;
+    if (isPortalTile(g[r][c])) removePortal(c); else g[r][c] = TILE.EMPTY;
+  } else if (!first) return false;
+  else if (t === 'flip' || t === 'wave' || t === 'robot') {
+    removePortal(c);
+    for (let y = 1; y <= R - 2; y++) if (g[y][c] === TILE.EMPTY) g[y][c] = PORTAL_TILE[t];
+    m.portals.push({ x: c, mode: t, row: rr }); m.portals.sort((a, b) => a.x - b.x);
+  } else if (SIZE_TILE[t]) {
+    removePortal(c);
+    for (let y = 1; y <= R - 2; y++) if (g[y][c] === TILE.EMPTY) g[y][c] = SIZE_TILE[t];
+  } else if (t === 'start') {
+    if (c >= m.goal - 1) { setStatus('start must be left of the goal'); return false; }
+    m.checkpoints = [{ x: c, y: rr }, ...m.checkpoints.slice(1).filter(k => k.x > c)];
+  } else if (t === 'cp') {
+    const i = m.checkpoints.findIndex((k, i) => i > 0 && k.x === c);
+    if (i > 0) m.checkpoints.splice(i, 1);
+    else if (c > m.checkpoints[0].x && c < m.goal) {
+      m.checkpoints.push({ x: c, y: rr });
+      m.checkpoints = [m.checkpoints[0], ...m.checkpoints.slice(1).sort((a, b) => a.x - b.x)];
+    } else { setStatus('checkpoints go between start and goal'); return false; }
+  } else if (t === 'goal') {
+    if (c <= m.checkpoints[0].x + 1) { setStatus('goal must be right of the start'); return false; }
+    m.goal = c; m.checkpoints = m.checkpoints.filter((k, i) => i === 0 || k.x < c);
+  }
+  return true;
+}
+function edSetCols(n) {
+  n = Math.max(30, Math.min(500, Math.round(n) || 100));
+  const m = ed.meta, R = CONFIG.rows; if (n === m.cols) return;
+  edSnapshot();
+  ed.grid = ed.grid.map((row, r) => {
+    const out = row.slice(0, n);
+    while (out.length < n) out.push(r === 0 || r === R - 1 ? TILE.SOLID : TILE.EMPTY);
+    return out;
+  });
+  m.cols = n; m.portals = m.portals.filter(q => q.x < n);
+  m.goal = Math.min(m.goal, n - 2);
+  if (m.checkpoints[0].x >= m.goal - 1) m.checkpoints[0].x = Math.max(0, m.goal - 4);
+  m.checkpoints = m.checkpoints.filter((k, i) => i === 0 || (k.x < m.goal && k.x > m.checkpoints[0].x));
+  edRefresh();
+}
+
+// ---- selection: a set of "col,row" cells holding blocks, spikes or slopes ----
+const cellKey = (c, r) => c + ',' + r;
+const selCells = () => [...ed.sel].map(k => { const [c, r] = k.split(',').map(Number); return { c, r, t: ed.grid[r][c] }; });
+function edSelectBox(c0, r0, c1, r1, add) {
+  if (!add) ed.sel = new Set();
+  const [ca, cb] = [Math.min(c0, c1), Math.max(c0, c1)], [ra, rb] = [Math.max(1, Math.min(r0, r1)), Math.min(CONFIG.rows - 2, Math.max(r0, r1))];
+  for (let r = ra; r <= rb; r++) for (let c = Math.max(0, ca); c <= Math.min(ed.meta.cols - 1, cb); c++)
+    if (selectable(ed.grid[r][c])) ed.sel.add(cellKey(c, r));
+  setStatus(ed.sel.size ? ed.sel.size + ' selected' : '');
+}
+function edRotateSel(cw) {
+  const cells = selCells().filter(o => ROT_CW[o.t]);
+  if (!cells.length) { setStatus('nothing in the selection rotates (blocks look the same)'); return; }
+  edSnapshot(); cells.forEach(o => { ed.grid[o.r][o.c] = cw ? ROT_CW[o.t] : ROT_CCW[o.t]; });
+  edRefresh(); setStatus('rotated ' + cells.length);
+}
+function edDeleteSel() {
+  if (!ed.sel.size) return;
+  edSnapshot(); selCells().forEach(o => { ed.grid[o.r][o.c] = TILE.EMPTY; });
+  const n = ed.sel.size; ed.sel = new Set(); edRefresh(); setStatus('deleted ' + n);
+}
+function edPlace(items, dc, dr) {   // put items at an offset; returns false if any would leave the level
+  const R = CONFIG.rows;
+  if (items.some(o => o.c + dc < 0 || o.c + dc >= ed.meta.cols || o.r + dr < 1 || o.r + dr > R - 2)) { setStatus("that would go outside the level"); return false; }
+  ed.sel = new Set();
+  items.forEach(o => { ed.grid[o.r + dr][o.c + dc] = o.t; ed.sel.add(cellKey(o.c + dc, o.r + dr)); });
+  return true;
+}
+function edMoveSel(dc, dr) {
+  if (!dc && !dr) return;
+  const items = selCells(), snap = JSON.stringify(edDef());
+  items.forEach(o => { ed.grid[o.r][o.c] = TILE.EMPTY; });
+  if (!edPlace(items, dc, dr)) { items.forEach(o => { ed.grid[o.r][o.c] = o.t; }); ed.sel = new Set(items.map(o => cellKey(o.c, o.r))); return; }
+  edPushUndo(snap); edRefresh(); setStatus('moved ' + items.length);
+}
+function edCopy() {
+  if (!ed.sel.size) { setStatus('select something to copy'); return false; }
+  const items = selCells(), c0 = Math.min(...items.map(o => o.c)), r0 = Math.min(...items.map(o => o.r));
+  ed.clip = items.map(o => ({ c: o.c - c0, r: o.r - r0, t: o.t }));
+  setStatus('copied ' + items.length); return true;
+}
+function edPaste(c, r) {
+  if (!ed.clip) { setStatus('copy something first'); return; }
+  const snap = JSON.stringify(edDef());
+  if (edPlace(ed.clip, c, r)) { edPushUndo(snap); edRefresh(); ed.tool = 'select'; edSync(); setStatus('pasted ' + ed.clip.length + ' (drag to move it)'); }
+}
+function edPasteHere() {   // at the hovered cell, or the left of the view
+  const h = ed.hover || { c: Math.floor(ed.cam / T) + 2, r: 4 };
+  edPaste(h.c, Math.max(1, h.r));
+}
+function edDuplicate() {
+  if (!edCopy()) return;
+  const items = selCells(), c0 = Math.min(...items.map(o => o.c)), c1 = Math.max(...items.map(o => o.c)), r0 = Math.min(...items.map(o => o.r));
+  edPaste(c1 + 1, r0);
+}
+function edRotate(cw) {   // Q / E: rotate the selection, or the current brush
+  if (ed.sel.size) { edRotateSel(cw); return; }
+  const b = BRUSH[ed.tool];
+  if (!b) { setStatus('Q/E rotate spikes, slopes or a selection'); return; }
+  ed.rot[ed.tool] = (ed.rot[ed.tool] + (cw ? 1 : 3)) % 4; edSync();
+}
+function edSetTool(id) { if (id !== 'select' && ed.sel.size) ed.sel = new Set(); ed.tool = id; edSync(); }
+
+// ---- view ----
+function edView() {
+  const top = edUI.offsetHeight, s = Math.max(0.5, (H - top - 22) / (CONFIG.rows * T)), vw = W / s;
+  ed.cam = Math.max(0, Math.min(Math.max(0, ed.meta.cols * T - vw + 2 * T), ed.cam));
+  return { top, s, vw };
+}
+function edCell(x, y) { const v = edView(); return { c: Math.floor((x / v.s + ed.cam) / T), r: Math.floor((y - v.top) / v.s / T) }; }
+
+function drawEditor() {
+  const v = edView(), Lc = ed.L, m = ed.meta, R = CONFIG.rows;
+  ctx.save(); ctx.translate(-ed.cam * v.s, v.top); ctx.scale(v.s, v.s);
+  ctx.fillStyle = '#1a1648'; ctx.fillRect(0, 0, m.cols * T, R * T);
+  // grid
+  const c0 = Math.max(0, Math.floor(ed.cam / T)), c1 = Math.min(m.cols, Math.ceil((ed.cam + v.vw) / T) + 1);
+  ctx.fillStyle = '#25205e';
+  for (let c = c0; c <= c1; c++) ctx.fillRect(c * T, 0, c % 10 ? 0.5 : 1.2, R * T);
+  for (let r = 0; r <= R; r++) ctx.fillRect(c0 * T, r * T, (c1 - c0) * T, 0.5);
+  drawTiles(Lc, ed.cam, v.vw);
+  // wave-portal entry rows
+  m.portals.forEach(q => { if (q.mode === 'wave') { ctx.fillStyle = '#ff8ad8'; diamond(q.x * T + T / 2, q.row * T + T / 2, 5); } });
+  // start marker
+  const st = m.checkpoints[0], sm = Lc.modeAt(st.x);
+  ctx.strokeStyle = C.hero; ctx.lineWidth = 1.5;
+  if (sm === 'wave') { ctx.fillStyle = C.hero; diamond(st.x * T + 3, st.y * T + T / 2, 5); }
+  else ctx.strokeRect(st.x * T, (R - 1) * T - 14 - 1, 10, 14);
+  ctx.fillStyle = C.hero; ctx.font = 'bold 9px "Courier New", monospace'; ctx.textAlign = 'center'; ctx.fillText('START', st.x * T + 5, T - 4);
+  // checkpoints
+  m.checkpoints.forEach((k, i) => {
+    if (!i) return;
+    ctx.fillStyle = C.hero; ctx.globalAlpha = 0.25; ctx.fillRect(k.x * T + 7, T, 2, (R - 2) * T); ctx.globalAlpha = 1;
+    ctx.fillRect(k.x * T + 7, 13 * T - 12, 2, 12); ctx.fillRect(k.x * T + 9, 13 * T - 12, 7, 5);
+    if (Lc.modeAt(k.x) === 'wave') diamond(k.x * T + 3, k.y * T + T / 2, 4);
+  });
+  // goal
+  ctx.fillStyle = C.flag; ctx.fillRect(m.goal * T, 4 * T, 3, 9 * T); ctx.fillRect(m.goal * T + 3, 4 * T, 20, 12);
+  // past the goal is unused
+  ctx.fillStyle = 'rgba(10,8,30,0.55)'; ctx.fillRect((m.goal + 1) * T, 0, (m.cols - m.goal - 1) * T, R * T);
+  // where the checker got stuck
+  if (ed.stuckX >= 0) { ctx.fillStyle = 'rgba(255,84,112,0.25)'; ctx.fillRect(Math.floor(ed.stuckX) * T, 0, 2 * T, R * T); }
+  // selection, marquee and move preview
+  const d = ed.drag, mv = d && d.type === 'move' ? d : null;
+  ctx.setLineDash([3, 2]); ctx.lineWidth = 1.2; ctx.strokeStyle = '#ffffff';
+  selCells().forEach(o => {
+    if (mv) { ctx.globalAlpha = 0.25; ctx.fillStyle = C.bg; ctx.fillRect(o.c * T, o.r * T, T, T); ctx.globalAlpha = 0.75; drawTile(null, o.t, o.c + mv.dc, o.r + mv.dr, Lc.zone[Math.min(m.cols - 1, Math.max(0, o.c + mv.dc))]); ctx.globalAlpha = 1; }
+    ctx.fillStyle = 'rgba(53,230,200,0.18)'; ctx.fillRect((o.c + (mv ? mv.dc : 0)) * T, (o.r + (mv ? mv.dr : 0)) * T, T, T);
+    ctx.strokeRect((o.c + (mv ? mv.dc : 0)) * T + 0.5, (o.r + (mv ? mv.dr : 0)) * T + 0.5, T - 1, T - 1);
+  });
+  if (d && d.type === 'box') {
+    const x0 = Math.min(d.c0, d.c1) * T, y0 = Math.min(d.r0, d.r1) * T;
+    ctx.strokeStyle = C.hero; ctx.fillStyle = 'rgba(53,230,200,0.1)';
+    ctx.fillRect(x0, y0, (Math.abs(d.c1 - d.c0) + 1) * T, (Math.abs(d.r1 - d.r0) + 1) * T);
+    ctx.strokeRect(x0 + 0.5, y0 + 0.5, (Math.abs(d.c1 - d.c0) + 1) * T - 1, (Math.abs(d.r1 - d.r0) + 1) * T - 1);
+  }
+  ctx.setLineDash([]);
+  // hover: brush preview / column marker
+  if (ed.hover && !ed.drag && ed.tool !== 'pan') {
+    const { c, r } = ed.hover, bt = brushTile(ed.tool);
+    if (bt !== undefined && r >= 1 && r <= R - 2) { ctx.globalAlpha = 0.55; drawTile(null, bt, c, r, Lc.zone[Math.max(0, Math.min(m.cols - 1, c))]); ctx.globalAlpha = 1; }
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
+    if (['flip', 'wave', 'robot', 'mini', 'normal', 'cp', 'goal'].includes(ed.tool)) ctx.strokeRect(c * T + 0.5, T + 0.5, T - 1, (R - 2) * T - 1);
+    else ctx.strokeRect(c * T + 0.5, r * T + 0.5, T - 1, T - 1);
+  }
+  ctx.restore();
+  // column ruler
+  ctx.fillStyle = '#9a96d8'; ctx.font = '11px "Courier New", monospace'; ctx.textAlign = 'left';
+  const ry = v.top + R * T * v.s + 15;
+  for (let c = Math.ceil(c0 / 10) * 10; c <= c1; c += 10) { const x = (c * T - ed.cam) * v.s + 2; if (!ed.hover || x < W - 140) ctx.fillText(String(c), x, ry); }
+  if (ed.hover) { ctx.textAlign = 'right'; ctx.fillText('col ' + ed.hover.c + ', row ' + ed.hover.r, W - 10, ry); }
+}
+function diamond(x, y, r) { ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.fill(); }
+
+// ---- input ----
+function edPointerDown(e) {
+  const { c, r } = edCell(e.clientX, e.clientY);
+  if (e.button === 1 || e.button === 2 || ed.tool === 'pan') { ed.drag = { type: 'pan', x0: e.clientX, cam0: ed.cam }; return; }
+  if (e.button !== 0) return;
+  if (ed.tool === 'select') {
+    if (ed.sel.has(cellKey(c, r)) && !e.shiftKey) ed.drag = { type: 'move', c0: c, r0: r, dc: 0, dr: 0 };
+    else ed.drag = { type: 'box', c0: c, r0: r, c1: c, r1: r, add: e.shiftKey };
+    return;
+  }
+  const snap = JSON.stringify(edDef());
+  if (edApply(c, r, true)) { edPushUndo(snap); edRefresh(); }
+  ed.drag = { type: 'paint', c, r, snap, pushed: ed.undo[ed.undo.length - 1] === snap };
+}
+cv.addEventListener('pointermove', e => {
+  if (state !== 'editor') return;
+  const cell = edCell(e.clientX, e.clientY); ed.hover = cell;
+  const d = ed.drag; if (!d) return;
+  if (d.type === 'pan') { ed.cam = d.cam0 - (e.clientX - d.x0) / edView().s; return; }
+  if (d.type === 'box') { d.c1 = cell.c; d.r1 = cell.r; return; }
+  if (d.type === 'move') { d.dc = cell.c - d.c0; d.dr = cell.r - d.r0; return; }
+  // paint along the line from the last cell so fast drags leave no holes
+  const n = Math.max(Math.abs(cell.c - d.c), Math.abs(cell.r - d.r)); let changed = false;
+  for (let i = 1; i <= n; i++) changed = edApply(Math.round(d.c + (cell.c - d.c) * i / n), Math.round(d.r + (cell.r - d.r) * i / n), false) || changed;
+  d.c = cell.c; d.r = cell.r;
+  if (changed) { if (!d.pushed) { edPushUndo(d.snap); d.pushed = true; } edRefresh(); }
+});
+cv.addEventListener('pointerleave', () => { ed.hover = null; });
+cv.addEventListener('contextmenu', e => { if (state === 'editor') e.preventDefault(); });
+cv.addEventListener('wheel', e => {
+  if (state !== 'editor') return; e.preventDefault();
+  ed.cam += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / edView().s;
+}, { passive: false });
+function edDragEnd() {
+  const d = ed.drag; ed.drag = null;
+  if (d.type === 'box') edSelectBox(d.c0, d.r0, d.c1, d.r1, d.add);
+  else if (d.type === 'move') edMoveSel(d.dc, d.dr);
+}
+function edKey(e) {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? edRedo() : edUndo(); return; }
+    if (e.code === 'KeyY') { e.preventDefault(); edRedo(); return; }
+    if (e.code === 'KeyS') { e.preventDefault(); edSaveNow(); return; }
+    if (e.code === 'KeyC') { e.preventDefault(); edCopy(); return; }
+    if (e.code === 'KeyV') { e.preventDefault(); edPasteHere(); return; }
+    if (e.code === 'KeyD') { e.preventDefault(); edDuplicate(); return; }
+    if (e.code === 'KeyA') { e.preventDefault(); edSetTool('select'); edSelectBox(0, 1, ed.meta.cols - 1, CONFIG.rows - 2, false); return; }
+  }
+  if (e.code === 'KeyQ') { edRotate(false); return; }
+  if (e.code === 'KeyE') { edRotate(true); return; }
+  if ((e.code === 'Delete' || e.code === 'Backspace') && ed.sel.size) { e.preventDefault(); edDeleteSel(); return; }
+  if (e.code === 'Escape' && ed.sel.size) { ed.sel = new Set(); setStatus(''); return; }
+  const step = (e.shiftKey ? 20 : 4) * T;
+  if (e.code === 'ArrowRight') { ed.cam += step; e.preventDefault(); }
+  else if (e.code === 'ArrowLeft') { ed.cam -= step; e.preventDefault(); }
+  else if (e.code === 'Escape') closeEditor();
+  else if (e.code === 'KeyT') edTest(false);
+  else if (e.code === 'KeyH') setGuide('modal');
+  else if (TOOL_KEYS[e.code] !== undefined) edSetTool(TOOLS[TOOL_KEYS[e.code]].id);
+}
+
+// ---- toolbar ----
+TOOLS.forEach((t, i) => {
+  const b = document.createElement('button'); b.className = 'tool'; b.textContent = t.label; b.dataset.tool = t.id;
+  b.title = t.tip + '  [' + t.key.toUpperCase() + ']'; b.setAttribute('aria-label', t.tip);
+  if (t.color) b.style.color = t.color;
+  b.onclick = () => edSetTool(t.id);
+  $('ed-tools').appendChild(b);
+});
+function edSync() {
+  if (!ed.meta) return;
+  document.querySelectorAll('#ed-tools button').forEach(b => {
+    b.classList.toggle('on', b.dataset.tool === ed.tool);
+    if (BRUSH[b.dataset.tool]) b.textContent = BRUSH[b.dataset.tool].labels[ed.rot[b.dataset.tool]];
+  });
+  $('ed-selbtns').hidden = ed.tool !== 'select';
+  if (document.activeElement !== $('ed-name')) $('ed-name').value = ed.meta.name;
+  $('ed-mode').value = ed.meta.mode;
+  if (document.activeElement !== $('ed-cols')) $('ed-cols').value = ed.meta.cols;
+  $('ed-status').textContent = ed.status;
+}
+function edFillLoad() {
+  const sel = $('ed-load'); sel.innerHTML = '';
+  const add = (parent, v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; parent.appendChild(o); };
+  add(sel, '', 'start from\u2026');
+  LEVEL_DEFS.forEach((d, i) => add(sel, 'b' + i, (i + 1) + '. ' + d.name));
+}
+$('ed-name').addEventListener('input', e => { ed.meta.name = e.target.value.trim() || 'Untitled'; edChanged(); });
+$('ed-mode').addEventListener('change', e => { edSnapshot(); ed.meta.mode = e.target.value; edRefresh(); });
+$('ed-cols').addEventListener('change', e => edSetCols(+e.target.value));
+$('ed-load').addEventListener('change', e => {
+  const v = e.target.value; e.target.value = ''; if (!v) return;
+  const d = LEVEL_DEFS[+v.slice(1)], keep = { id: ed.meta.id, name: ed.meta.name, music: ed.meta.music, onlineId: ed.meta.onlineId };
+  edSnapshot(); edLoad({ ...d, ...keep }, true);
+  setStatus('copied "' + d.name + '" in (undo to revert)'); e.target.blur();
+});
+edUI.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  ({
+    test: () => edTest(false), testHere: () => edTest(true), check: edCheck, undo: edUndo,
+    redo: edRedo, save: edSaveNow, json: () => openJson(false), menu: closeEditor, guide: () => setGuide('modal'), music: openMusicPanel,
+    rotL: () => edRotate(false), rotR: () => edRotate(true), copy: edCopy, paste: edPasteHere, dup: edDuplicate, delsel: edDeleteSel,
+  })[a.dataset.act]();
+});
+// ---- open / close / test ----
+function openEditor(def) {
+  edLoad(def); ed.undo = []; ed.redo = []; ed.dirty = false; armed = null; setStatus('');
+  edFillLoad(); $('ed-saved').textContent = '\u2713 saved';
+  testing = false; state = 'editor'; edUI.hidden = false; edSync();
+}
+function closeEditor() {
+  if (ed.dirty && !autosaveOn()) {   // unsaved work: second press discards it
+    if (!isArmed('leave')) { arm('leave', () => {}); setStatus('unsaved changes: press save, or done again to discard them'); return; }
+    armed = null; ed.dirty = false;
+  } else edFlush();
+  clearTimeout(ed.saveT); edUI.hidden = true; edModal.hidden = true; closeMusicPanel(); state = 'mylevels';
+}
+function backToEditor() { testing = false; state = 'editor'; edUI.hidden = false; }
+function edTest(fromView) {
+  const def = edDef(); testFromStart = !fromView;
+  if (fromView) {
+    const x = Math.max(0, Math.floor(ed.cam / T) + 2);
+    if (x >= def.goal - 1) { setStatus('scroll left of the goal to test from here'); return; }
+    let y = 7;   // nearest open row to the middle, for wave starts
+    for (let d = 0; d < 7; d++) { if (!ed.L.grid[7 - d][x]) { y = 7 - d; break; } if (!ed.L.grid[7 + d][x]) { y = 7 + d; break; } }
+    def.checkpoints = [{ x, y }, ...def.checkpoints.filter(k => k.x > x)];
+  }
+  if (document.activeElement) document.activeElement.blur();
+  if (autosaveOn()) edFlush();
+  edUI.hidden = true; testing = true; playCtx = { kind: 'test' }; startDef(def, -1, ed.meta.checkpoints[0].x);
+}
+
+// ---- beatability check: tries every hold/release choice each step (same idea as verify.js) ----
+function edCheck() {
+  const id = ++ed.checkId, Lc = compileLevel(edDef());
+  const key = (S, d) => { const p = S.p; return S.mode + ',' + Math.round(p.x * 64) + ',' + Math.round(p.y * 128) + ',' + Math.round(p.vy * 16) + ',' + p.g + ',' + +p.ground + ',' +
+    Math.round(S.buffer * 60) + ',' + Math.round(S.coyote * 60) + ',' + Math.round(S.boost * 60) + ',' + Math.round(S.boostEl * 60) + ',' + +S.mini + ',' + S.used + ',' + +d; };
+  let frontier = [{ S: createSim(Lc), d: false }], maxX = 0, frames = 0;
+  ed.stuckX = -1; setStatus('checking…');
+  const tick = () => {
+    if (id !== ed.checkId) return;   // level changed: abandon
+    const t0 = performance.now();
+    while (performance.now() - t0 < 14) {
+      const next = new Map();
+      for (const n of frontier) for (const d of [false, true]) {
+        const S = { ...n.S, p: { ...n.S.p } }; step(S, { down: d, pressed: d && !n.d });
+        if (S.status === 'win') { setStatus('✓ beatable from the start'); return; }
+        if (S.status === 'dead') continue;
+        maxX = Math.max(maxX, S.p.x); const k = key(S, d); if (!next.has(k)) next.set(k, { S, d });
+      }
+      if (!next.size || ++frames > 40000) {
+        ed.stuckX = maxX; ed.cam = (maxX - 8) * T;
+        setStatus('✗ no way past column ' + Math.floor(maxX + 1) + ' (marked red)'); return;
+      }
+      frontier = [...next.values()];
+      if (frontier.length > 2500) { for (let i = frontier.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [frontier[i], frontier[j]] = [frontier[j], frontier[i]]; } frontier.length = 2500; }
+    }
+    setStatus('checking… ' + Math.min(99, Math.round(100 * maxX / Lc.goal)) + '%'); setTimeout(tick, 0);
+  };
+  tick();
+}
+
+// ---- JSON import / export ----
+let jsonFromList = false;
+function openJson(fromList) {
+  jsonFromList = fromList;
+  $('ed-json').value = fromList ? '' : JSON.stringify(edDef(), null, 1);
+  $('ed-json').placeholder = 'paste a level, or a whole levels.json';
+  $('ed-mstatus').textContent = fromList ? 'paste JSON or open a file, then press load' : '';
+  edModal.hidden = false;
+}
+function importJson(text) {   // adds the level(s) to "my levels"
+  const o = JSON.parse(text), list = Array.isArray(o.levels) ? o.levels : [o];
+  list.forEach(d => {
+    if (!d.tiles && !d.ops) throw new Error('a level needs "tiles" (or "ops")');
+    compileLevel(d);   // throws on bad data
+  });
+  const added = list.map(d => {
+    const def = { ...d, name: d.name || 'Imported', mode: d.mode || d.startMode || 'flip' }; delete def.startMode; delete def.onlineId;
+    def.id = d.id && !customs.some(c => c.id === d.id) ? d.id : uniqueId(def.name);
+    def.cols = def.cols || (def.tiles ? def.tiles[0].length : 100);
+    customs.unshift(def); return def;
+  });
+  storeCustoms();
+  if (!jsonFromList && added.length === 1) { if (autosaveOn()) edFlush(); openEditor(added[0]); }
+  return added.length === 1 ? 'added "' + added[0].name + '" to my levels' : added.length + ' levels added to my levels';
+}
+edModal.addEventListener('click', e => {
+  const a = e.target.closest('[data-mact]'); const ms = $('ed-mstatus');
+  if (!a) { if (e.target === edModal) edModal.hidden = true; return; }
+  const act = a.dataset.mact, text = $('ed-json').value;
+  if (act === 'close') edModal.hidden = true;
+  if (act === 'load') {
+    try { const msg = importJson(text); if (state === 'editor') setStatus(msg); edModal.hidden = true; }
+    catch (err) { ms.textContent = 'could not load: ' + err.message; }
+  }
+  if (act === 'copy') {
+    const ta = $('ed-json'), done = () => { ms.textContent = 'copied'; };
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(done, () => { ta.select(); try { document.execCommand('copy'); done(); } catch (e2) { ms.textContent = 'select the text and copy it'; } });
+  }
+  if (act === 'download' && window.RoboAndroid) {   // Android app: the system "save as" screen
+    const name = slug(ed.meta ? ed.meta.name : 'level') + '.json';
+    if (RoboAndroid.saveFile) RoboAndroid.saveFile(name, text); else RoboAndroid.shareText(name, text);
+    ms.textContent = 'pick where to save it'; return;
+  }
+  if (act === 'download') {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' })), link = document.createElement('a');
+    link.href = url; link.download = slug(ed.meta.name) + '.json'; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); ms.textContent = 'download started (if nothing happens, use copy)';
+  }
+  if (act === 'file') $('ed-file').click();
+});
+$('ed-file').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => { $('ed-json').value = t; $('ed-mstatus').textContent = 'file read, press load'; }); e.target.value = '';
+});
+
+// ============================== LEVEL MUSIC ==============================
+// Songs are blobs in IndexedDB keyed by level id (too big for localStorage). The level JSON only carries
+// music: { name, offset }, so in Unity map "name" to an AudioClip. Playback is synced to position:
+// horizontal speed depends only on the mode at each column, so the song time at x is fixed.
+const MusicStore = (() => {
+  const mem = new Map(); let dbp = null;
+  const open = () => dbp || (dbp = new Promise(res => {
+    try {
+      const q = indexedDB.open('roboRunner', 1);
+      q.onupgradeneeded = () => q.result.createObjectStore('music');
+      q.onsuccess = () => res(q.result); q.onerror = () => res(null); q.onblocked = () => res(null);
+    } catch (e) { res(null); }
+  }));
+  const run = async (mode, fn) => {
+    const db = await open(); if (!db) return null;
+    return new Promise(res => {
+      try { const t = db.transaction('music', mode), rq = fn(t.objectStore('music')); t.oncomplete = () => res(rq.result); t.onerror = t.onabort = () => res(null); }
+      catch (e) { res(null); }
+    });
+  };
+  return {
+    async get(id) { if (mem.has(id)) return mem.get(id); const b = await run('readonly', s => s.get(id)); if (b) mem.set(id, b); return b || null; },
+    async put(id, blob) { mem.set(id, blob); return (await run('readwrite', s => s.put(blob, id))) !== null; },
+    async del(id) { mem.delete(id); await run('readwrite', s => s.delete(id)); },
+  };
+})();
+const musicEnabled = () => save.music !== false;
+const song = new Audio(); song.preload = 'auto';
+let songUrl = null, songReady = false, songToken = 0, songStartX = 0, songOffset = 0, songSeekTo = null;
+song.addEventListener('loadedmetadata', () => { if (songSeekTo !== null) { try { song.currentTime = songSeekTo; } catch (e) {} } });
+// seconds of travel from x0 to x1 (whole columns; each column's speed comes from its mode)
+function travelTime(Lv, x0, x1) {
+  let t = 0;
+  for (let c = Math.floor(x0); c < Math.floor(x1); c++) t += 1 / CONFIG.modes[Lv.modeAt(c + 0.5)].speed;
+  return t;
+}
+async function loadMusic(def, fromX) {
+  const tok = ++songToken; songReady = false; song.pause();
+  if (!def.music || !def.id || !musicEnabled()) return;
+  const blob = await MusicStore.get(def.id);
+  if (!blob || tok !== songToken) return;
+  if (songUrl) URL.revokeObjectURL(songUrl);
+  songUrl = URL.createObjectURL(blob); song.src = songUrl;
+  songStartX = fromX; songOffset = +def.music.offset || 0; songReady = true;
+  musicSeek();
+}
+function musicSeek() {
+  if (!songReady || !S) return;
+  song.pause();
+  songSeekTo = songOffset + travelTime(L, songStartX, L.checkpoints[S.cp].x);
+  if (song.readyState >= 1) { try { song.currentTime = songSeekTo; } catch (e) {} }
+}
+function musicPlay() { if (songReady && song.paused && !song.ended) song.play().catch(() => {}); }
+function musicPause() { if (!song.paused) song.pause(); }
+
+// ---- editor: music panel ----
+const muModal = $('mu-modal'), muPrev = $('mu-prev');
+let muUrl = null;
+function muSetPreview(blob) {
+  if (muUrl) { URL.revokeObjectURL(muUrl); muUrl = null; }
+  if (blob) { muUrl = URL.createObjectURL(blob); muPrev.src = muUrl; } else muPrev.removeAttribute('src');
+  muPrev.load();
+}
+function muRefresh(blob) {
+  const m = ed.meta.music;
+  $('mu-name').textContent = m ? '♫ ' + m.name + (blob ? '' : '  (not in this browser: upload it again)') : 'No music yet.';
+  $('mu-off').value = m ? m.offset || 0 : 0; $('mu-off').disabled = !m;
+  muModal.querySelector('[data-uact=remove]').disabled = !m;
+  muPrev.hidden = !blob;
+  $('ed-music').classList.toggle('on', !!m);
+}
+async function openMusicPanel() {
+  $('mu-status').textContent = musicEnabled() ? '' : 'level music is off in Settings';
+  muModal.hidden = false;
+  const blob = ed.meta.music ? await MusicStore.get(ed.meta.id) : null;
+  muSetPreview(blob); muRefresh(blob);
+}
+function closeMusicPanel() { muModal.hidden = true; muPrev.pause(); }
+muModal.addEventListener('click', e => {
+  const a = e.target.closest('[data-uact]');
+  if (!a) { if (e.target === muModal) closeMusicPanel(); return; }
+  const act = a.dataset.uact;
+  if (act === 'close') closeMusicPanel();
+  if (act === 'file') $('mu-file').click();
+  if (act === 'remove' && ed.meta.music) {
+    MusicStore.del(ed.meta.id); ed.meta.music = null; edChanged();
+    muSetPreview(null); muRefresh(null); $('mu-status').textContent = 'music removed'; setStatus('music removed');
+  }
+});
+$('mu-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (!/^audio\//.test(f.type) && !/\.(mp3|m4a|ogg|wav|aac)$/i.test(f.name)) { $('mu-status').textContent = 'that is not an audio file'; return; }
+  $('mu-status').textContent = 'saving…';
+  const kept = await MusicStore.put(ed.meta.id, f);
+  ed.meta.music = { name: f.name, offset: 0 }; edChanged();
+  muSetPreview(f); muRefresh(f);
+  $('mu-status').textContent = kept ? 'added' : 'added for this session (this browser would not store it)';
+  setStatus('music: ' + f.name);
+});
+$('mu-off').addEventListener('change', e => {
+  if (!ed.meta.music) return;
+  ed.meta.music.offset = Math.max(0, +e.target.value || 0); e.target.value = ed.meta.music.offset; edChanged();
+  if (!muPrev.hidden) { try { muPrev.currentTime = ed.meta.music.offset; } catch (err) {} }
+});
+// keep the toolbar's music button lit when the open level has a song
+const _openEditor = openEditor;
+openEditor = function (def) { _openEditor(def); $('ed-music').classList.toggle('on', !!ed.meta.music); };
+
+// ============================== ONLINE LEVELS (Firebase) ==============================
+// Firestore collection "levels", one doc per published level:
+//   { name, nameLower, creator, uid, mode, cols, data (the level JSON as a string), musicName?, version,
+//     plays, likes, createdAt, updatedAt }   + subcollection likes/{uid} (one per player who liked it)
+// Players sign in anonymously; firestore.rules checks ownership and keeps the counters honest.
+const ONLINE_PAGE = 20;
+const SORTS = [['new', 'newest'], ['plays', 'popular'], ['likes', 'top liked'], ['mine', 'mine']];
+const SORT_FIELD = { new: 'createdAt', plays: 'plays', likes: 'likes' };
+const ol = { sort: 'new', q: '', items: [], cursor: null, more: false, loading: false, err: '', fb: null, initP: null, stamp: 0, played: new Set(), fresh: false };
+if (!save.liked) save.liked = {};
+if (!save.verified) save.verified = {};
+const onlineReady = () => !!FIREBASE_CONFIG;
+
+function olInit() {
+  if (ol.initP) return ol.initP;
+  const p = (async () => {
+    const [A, Au, F] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'].map(f =>
+      import(FIREBASE_SDK + f).catch(() => { throw Object.assign(new Error('load'), { code: 'sdk-load' }); })));
+    // reuse the app on a retry (initializing twice throws); anonymous sign-in needs no popup/redirect helper,
+    // so initializeAuth skips the hidden sign-in iframe getAuth() would load (lighter, and friendlier to the Android app)
+    const app = A.getApps().length ? A.getApp() : A.initializeApp(FIREBASE_CONFIG);
+    let auth;
+    try { auth = Au.initializeAuth(app, { persistence: [Au.indexedDBLocalPersistence, Au.browserLocalPersistence] }); }
+    catch (e) { auth = Au.getAuth(app); }   // already initialized by an earlier attempt
+    let user = await new Promise(res => { const stop = Au.onAuthStateChanged(auth, u => { stop(); res(u); }); });
+    if (!user) user = (await Au.signInAnonymously(auth)).user;
+    ol.fb = { F, db: F.getFirestore(app), uid: user.uid };
+    return ol.fb;
+  })();
+  ol.initP = p; p.catch(() => { if (ol.initP === p) ol.initP = null; });   // a failed start can be retried
+  return p;
+}
+function olErr(e) {
+  const c = (e && e.code) || '';
+  if (c === 'sdk-load') return 'Could not load Firebase. Are you online?';
+  if (c === 'auth/operation-not-allowed' || c === 'auth/admin-restricted-operation') return 'Anonymous sign-in is off. Turn it on in Firebase > Authentication > Sign-in method.';
+  if (c === 'auth/invalid-api-key' || c === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.') return 'The apiKey in FIREBASE_CONFIG is not valid.';
+  if (c === 'auth/network-request-failed' || c === 'unavailable') return 'Could not reach Firebase. Are you online?';
+  if (c === 'permission-denied') return 'Firebase refused that. Check that firestore.rules is deployed.';
+  if (c === 'failed-precondition') return 'Firestore needs an index for this list: ' + ((e.message || '').match(/https:\/\/\S+/) || ['see the browser console'])[0];
+  if (c === 'not-found') return 'That level is no longer online.';
+  console.error(e);
+  return 'Something went wrong: ' + (c || (e && e.message) || e);
+}
+const tsMs = t => (t && typeof t.toMillis === 'function' ? t.toMillis() : 0);
+function ago(t) {
+  const s = (Date.now() - tsMs(t)) / 1000;
+  if (!tsMs(t) || s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  if (s < 86400 * 60) return Math.floor(s / 86400) + 'd ago';
+  return new Date(tsMs(t)).toLocaleDateString();
+}
+
+async function olLoad(reset) {
+  if (!onlineReady()) return;
+  if (!reset && (ol.loading || !ol.more)) return;
+  const stamp = ++ol.stamp;   // a newer load makes older answers stale
+  ol.loading = true; ol.err = '';
+  if (reset) { ol.items = []; ol.cursor = null; ol.more = false; scrollY.online = 0; }
+  try {
+    const { F, db, uid } = await olInit(), col = F.collection(db, 'levels'), q = ol.q.trim().toLowerCase();
+    const after = ol.cursor ? [F.startAfter(ol.cursor)] : [];
+    let qs;
+    if (ol.sort === 'mine') qs = F.query(col, F.where('uid', '==', uid), F.limit(200));   // no composite index needed
+    else if (q) qs = F.query(col, F.where('nameLower', '>=', q), F.where('nameLower', '<=', q + ''), F.orderBy('nameLower'), ...after, F.limit(ONLINE_PAGE));
+    else qs = F.query(col, F.orderBy(SORT_FIELD[ol.sort], 'desc'), ...after, F.limit(ONLINE_PAGE));
+    const snap = await F.getDocs(qs);
+    if (stamp !== ol.stamp) return;
+    let docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (ol.sort === 'mine') docs = docs.filter(d => !q || String(d.nameLower).includes(q)).sort((a, b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+    ol.items.push(...docs.filter(d => !ol.items.some(x => x.id === d.id)));
+    if (snap.docs.length) ol.cursor = snap.docs[snap.docs.length - 1];
+    ol.more = ol.sort !== 'mine' && snap.docs.length === ONLINE_PAGE;
+    ol.fresh = true;
+  } catch (e) { if (stamp === ol.stamp) ol.err = olErr(e); }
+  finally { if (stamp === ol.stamp) ol.loading = false; }
+}
+function openOnline() {
+  state = 'online';
+  if (onlineReady() && (!ol.fresh || !ol.items.length) && !ol.loading) olLoad(true);
+}
+
+// online levels are other people's data: rebuild them field by field before compiling
+function olDef(it) {
+  try {
+    const d = JSON.parse(it.data), modes = ['flip', 'wave', 'robot'];
+    if (!Array.isArray(d.tiles) || d.tiles.length !== CONFIG.rows || !d.tiles.every(r => typeof r === 'string' && r.length <= 500)) return null;
+    const cols = Math.min(500, Math.max(30, d.cols | 0));
+    const def = {
+      id: 'online-' + it.id, name: String(it.name || 'Untitled').slice(0, 40), mode: modes.includes(d.mode) ? d.mode : 'flip',
+      cols, goal: Math.min(cols - 1, Math.max(4, d.goal | 0)), tiles: d.tiles,
+      checkpoints: (Array.isArray(d.checkpoints) ? d.checkpoints : []).slice(0, 64)
+        .map(c => ({ x: Math.max(0, Math.min(cols - 1, c.x | 0)), y: Math.max(1, Math.min(CONFIG.rows - 2, c.y === undefined ? 7 : c.y | 0)) })),
+      portals: (Array.isArray(d.portals) ? d.portals : []).slice(0, 300).filter(q => modes.includes(q.mode))
+        .map(q => ({ x: Math.max(0, Math.min(cols - 1, q.x | 0)), mode: q.mode, row: Math.max(1, Math.min(CONFIG.rows - 2, q.row === undefined ? 7 : q.row | 0)) })),
+    };
+    if (!def.checkpoints.length) def.checkpoints = [{ x: 2, y: 7 }];
+    compileLevel(def);
+    return def;
+  } catch (e) { return null; }
+}
+function olPlay(it) {
+  const def = olDef(it);
+  if (!def) { toast('this level could not be loaded'); return; }
+  if (!ol.played.has(it.id) && ol.fb) {   // count one play per level per session
+    ol.played.add(it.id); it.plays = (it.plays || 0) + 1;
+    const { F, db } = ol.fb; F.updateDoc(F.doc(db, 'levels', it.id), { plays: F.increment(1) }).catch(() => {});
+  }
+  testing = false; playCtx = { kind: 'online', id: it.id, own: !!(ol.fb && it.uid === ol.fb.uid) }; startDef(def, -1);
+}
+async function olLike(it) {
+  if (!ol.fb || it.busy) return;
+  const { F, db, uid } = ol.fb, on = !save.liked[it.id];
+  it.busy = true; it.likes = Math.max(0, (it.likes || 0) + (on ? 1 : -1));
+  if (on) save.liked[it.id] = 1; else delete save.liked[it.id];
+  store();
+  try {
+    const b = F.writeBatch(db), ref = F.doc(db, 'levels', it.id), likeRef = F.doc(db, 'levels', it.id, 'likes', uid);
+    if (on) b.set(likeRef, { at: F.serverTimestamp() }); else b.delete(likeRef);
+    b.update(ref, { likes: F.increment(on ? 1 : -1) });
+    await b.commit();
+  } catch (e) {
+    // most likely this browser's like record and the server disagree: trust the server
+    it.likes = Math.max(0, (it.likes || 0) + (on ? -1 : 1));
+    try {
+      const had = (await F.getDoc(F.doc(db, 'levels', it.id, 'likes', uid))).exists();
+      if (had) save.liked[it.id] = 1; else delete save.liked[it.id];
+    } catch (e2) { if (on) delete save.liked[it.id]; else save.liked[it.id] = 1; }
+    store(); toast(olErr(e));
+  } finally { it.busy = false; }
+}
+function olSave(it) {
+  const def = olDef(it);
+  if (!def) { toast('this level could not be loaded'); return; }
+  const copy = { ...def, id: uniqueId(def.name), name: def.name + (it.creator ? ' (' + String(it.creator).slice(0, 24) + ')' : '') };
+  customs.unshift(copy); storeCustoms(); toast('saved a copy to My Levels');
+}
+async function olDelete(it) {
+  try {
+    const { F, db } = ol.fb; await F.deleteDoc(F.doc(db, 'levels', it.id));
+    ol.items = ol.items.filter(x => x !== it);
+    customs.forEach(c => { if (c.onlineId === it.id) delete c.onlineId; }); storeCustoms();
+    toast('removed "' + it.name + '" from online levels');
+  } catch (e) { toast(olErr(e)); }
+}
+
+// ---- verifying: a level can only be published after its creator has beaten it as it is now ----
+function levelHash(def) {
+  const Lc = compileLevel(def);
+  const s = JSON.stringify([def.mode || 'flip', Lc.goal, Lc.checkpoints.map(c => [c.x, c.y]), Lc.portals.map(q => [q.x, q.mode, q.row]), Lc.grid.map(r => r.join(','))]);
+  let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36) + '.' + s.length;
+}
+const isVerified = d => save.verified[d.id] === levelHash(d);
+
+// ---- publishing ----
+const pubModal = $('pub-modal'); let pubDef = null;
+function openPublish(d) {
+  if (!onlineReady()) { toast('online levels are not set up yet (see the README)'); return; }
+  if (!isVerified(d)) { toast('beat this level once first: play it, or test it from the start'); return; }
+  pubDef = d;
+  $('pub-title').textContent = d.onlineId ? 'Update "' + d.name + '" online' : 'Publish "' + d.name + '"';
+  $('pub-info').textContent = (d.onlineId ? 'This replaces the online version. Plays and likes are kept.' : 'Anyone who plays Robo Runner online can find, play, like and copy it.') +
+    (d.music ? ' Music is not uploaded, so players won’t hear "' + d.music.name + '".' : '');
+  $('pub-creator').value = save.creator || ''; $('pub-status').textContent = '';
+  $('pub-go').textContent = d.onlineId ? 'update' : 'publish'; $('pub-go').disabled = false;
+  pubModal.hidden = false; setTimeout(() => $('pub-creator').focus(), 0);
+}
+function olPayload(def, creator) {
+  const Lc = compileLevel(def), name = (def.name || '').trim().slice(0, 40) || 'Untitled';
+  const data = JSON.stringify({ v: 1, mode: def.mode, cols: Lc.cols, goal: Lc.goal,
+    checkpoints: Lc.checkpoints.map(c => ({ x: c.x, y: c.y })), portals: Lc.portals.map(q => ({ x: q.x, mode: q.mode, row: q.row })),
+    tiles: Lc.grid.map(r => r.map(t => TILE_CHARS[t]).join('')) });
+  const p = { name, nameLower: name.toLowerCase(), creator, mode: def.mode, cols: Lc.cols, data, version: 1 };
+  if (def.music && def.music.name) p.musicName = String(def.music.name).slice(0, 100);
+  return p;
+}
+async function doPublish() {
+  const creator = $('pub-creator').value.trim().slice(0, 24), st = $('pub-status');
+  if (!creator) { st.textContent = 'enter a creator name'; return; }
+  save.creator = creator; store();
+  st.textContent = 'publishing…'; $('pub-go').disabled = true;
+  const oldId = pubDef.onlineId || null;
+  try {
+    const { F, db, uid } = await olInit(), p = olPayload(pubDef, creator);
+    let id = pubDef.onlineId;
+    if (id) {
+      try { await F.updateDoc(F.doc(db, 'levels', id), { ...p, ...(p.musicName ? {} : { musicName: F.deleteField() }), updatedAt: F.serverTimestamp() }); }
+      catch (e) { if (e.code === 'not-found' || e.code === 'permission-denied') id = null; else throw e; }   // gone, or made by another browser: publish anew
+    }
+    if (!id) id = (await F.addDoc(F.collection(db, 'levels'), { ...p, uid, plays: 0, likes: 0, createdAt: F.serverTimestamp(), updatedAt: F.serverTimestamp() })).id;
+    const c = customs.find(x => x.id === pubDef.id); if (c) { c.onlineId = id; storeCustoms(); }
+    pubModal.hidden = true; ol.fresh = false;
+    toast((oldId && id === oldId ? 'updated "' : 'published "') + p.name + '"');
+  } catch (e) { st.textContent = olErr(e); $('pub-go').disabled = false; }
+}
+pubModal.addEventListener('click', e => {
+  const a = e.target.closest('[data-pact]');
+  if (!a) { if (e.target === pubModal) pubModal.hidden = true; return; }
+  if (a.dataset.pact === 'go') doPublish(); else pubModal.hidden = true;
+});
+$('pub-creator').addEventListener('keydown', e => { if (e.key === 'Enter') doPublish(); });
+
+// ---- search box (a real input laid over the canvas) ----
+const olSearch = $('ol-search'); let olSearchT = 0;
+olSearch.addEventListener('input', () => {
+  clearTimeout(olSearchT);
+  olSearchT = setTimeout(() => { if (olSearch.value.trim().toLowerCase() !== ol.q) { ol.q = olSearch.value.trim().toLowerCase(); olLoad(true); } }, 350);
+});
+
+// ---- the online screen ----
+function drawOnline() {
+  const w = Math.min(820, W - 28), x = (W - w) / 2, narrow = w < 600, rowH = 62;
+  const ty = HEADER + 12, listTop = HEADER + (narrow ? 104 : 60);
+  if (!onlineReady()) {
+    olSearch.hidden = true;
+    header('USER LEVELS', 'playmenu');
+    const lines = ['Online levels are not switched on yet.', '', 'They use a free Firebase project. Once it is set up,',
+      'paste its web config into FIREBASE_CONFIG near the top of', 'the game’s script. The README has the steps.'];
+    font(14, true); ctx.textAlign = 'center'; ctx.fillStyle = C.text; ctx.fillText(lines[0], W / 2, HEADER + 70);
+    font(12); ctx.fillStyle = MUTED; lines.slice(1).forEach((l, i) => ctx.fillText(fitText(l, W - 24), W / 2, HEADER + 92 + i * 20));
+    return;
+  }
+  const n = ol.items.length, sc0 = vscroll('online', listTop + n * (rowH + 8) + (ol.more || ol.loading || ol.err || !n ? 70 : 10));
+  ctx.save(); ctx.beginPath(); ctx.rect(0, listTop - 4, W, H - listTop + 4); ctx.clip();
+  const o = { minY: listTop - 4 };
+  if (!n) {
+    font(13); ctx.textAlign = 'center'; ctx.fillStyle = MUTED;
+    const msg = ol.err ? '' : ol.loading ? 'loading…' : ol.sort === 'mine' ? 'You haven’t published a level yet. Use publish in My Levels.'
+      : ol.q ? 'No levels start with "' + ol.q + '".' : 'No levels online yet. Publish one from My Levels!';
+    ctx.fillText(fitText(msg, w), W / 2, listTop + 40);
+  }
+  ol.items.forEach((it, i) => {
+    const y = listTop + i * (rowH + 8) - sc0; if (y > H || y + rowH < listTop - 8) return;
+    const pal = PAL[it.mode] || PAL.flip, mine = ol.fb && it.uid === ol.fb.uid, liked = !!save.liked[it.id];
+    rr(x, y, w, rowH, 8); ctx.fillStyle = pal.card; ctx.fill();
+    ctx.fillStyle = pal.edge; rr(x, y, 4, rowH, 2); ctx.fill();
+    const bws = narrow ? [44, 64, 46] : [70, 74, 60], del = mine ? (narrow ? 44 : 70) : 0;
+    const btnsW = bws[0] + bws[1] + bws[2] + 16 + (del ? del + 8 : 0), textW = w - btnsW - 36;
+    const bt = best[(hard ? 'h' : 'e') + ':o:' + it.id];
+    ctx.textAlign = 'left'; ctx.fillStyle = C.text; font(15, true); ctx.fillText(fitText(String(it.name || 'Untitled'), textW), x + 16, y + 26);
+    font(12); ctx.fillStyle = pal.label;
+    ctx.fillText(fitText('by ' + (it.creator || '?') + (mine ? ' (you)' : '') + ' · ' + it.mode + ' · ' + it.cols + ' cols · ▶ ' + (it.plays || 0) +
+      ' · ' + ago(it.createdAt) + (bt ? ' · best ' + bt.toFixed(1) + 's' : ''), textW), x + 16, y + 46);
+    let bx = x + w - 12 - btnsW; const by = y + 14;
+    button(bx, by, bws[0], 34, narrow ? '▶' : '▶ play', { ...o, solid: true }, () => olPlay(it)); bx += bws[0] + 8;
+    button(bx, by, bws[1], 34, (liked ? '♥ ' : '♡ ') + (it.likes || 0), { ...o, accent: true, color: C.spike, solid: liked }, () => olLike(it)); bx += bws[1] + 8;
+    button(bx, by, bws[2], 34, narrow ? '+' : 'copy', { ...o, accent: true, color: ORANGE }, () => olSave(it)); bx += bws[2] + 8;
+    if (del) { const k = 'odel:' + it.id, sure = isArmed(k);
+      button(bx, by, del, 34, sure ? 'sure?' : narrow ? 'del' : 'remove', { ...o, accent: true, color: C.spike, solid: sure }, () => arm(k, () => olDelete(it))); }
+  });
+  const fy = listTop + n * (rowH + 8) - sc0 + 8;
+  if (ol.err) {
+    font(12); ctx.textAlign = 'center'; ctx.fillStyle = C.spike; ctx.fillText(fitText(ol.err, w), W / 2, fy + 14);
+    button(W / 2 - 45, fy + 26, 90, 32, 'retry', o, () => { if (n && ol.cursor) { ol.err = ''; ol.more = true; olLoad(false); } else olLoad(true); });
+  } else if (ol.loading && n) { font(12); ctx.textAlign = 'center'; ctx.fillStyle = MUTED; ctx.fillText('loading…', W / 2, fy + 20); }
+  else if (ol.more) button(W / 2 - 60, fy, 120, 34, 'load more', o, () => olLoad(false));
+  ctx.restore();
+  // toolbar (fixed): sort tabs + search
+  ctx.fillStyle = C.bg; ctx.fillRect(0, HEADER, W, listTop - HEADER - 4);
+  let bx = x; const tabW = narrow ? (w - 18) / 4 : 104;
+  SORTS.forEach(([k, label]) => {
+    button(bx, ty, tabW, 34, label, { solid: ol.sort === k, color: '#8e9bff', size: narrow ? 12 : 13 }, () => {
+      if (ol.sort !== k || ol.err) { ol.sort = k; olLoad(true); }
+    });
+    bx += tabW + 6;
+  });
+  const sx = narrow ? x : bx + 4, sy = narrow ? ty + 44 : ty, sw = narrow ? w : x + w - sx;
+  olSearch.hidden = H > W * 1.1;   // the rotate-your-device cover is drawn on the canvas, so hide the box under it
+  Object.assign(olSearch.style, { left: sx + 'px', top: sy + 'px', width: sw + 'px' });
+  header('USER LEVELS', 'playmenu');
+  if (W >= 640) difficulty(W - 14 - 124, 15);
+}
+
+// ---- small notices at the bottom of the screen ----
+let toastMsg = '', toastT = 0;
+function toast(t) { toastMsg = t; toastT = 3.2; }
+function drawToast(fdt) {
+  if (toastT <= 0) return;
+  toastT -= fdt;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); font(13, true);
+  const tw = Math.min(W - 24, ctx.measureText(toastMsg).width + 36), tx = (W - tw) / 2, ty = H - 62;
+  ctx.globalAlpha = Math.min(1, toastT * 3);
+  rr(tx, ty, tw, 40, 8); ctx.fillStyle = PANEL_HI; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#8e9bff'; ctx.stroke();
+  ctx.fillStyle = C.text; ctx.textAlign = 'center'; ctx.fillText(fitText(toastMsg, tw - 24), W / 2, ty + 25);
+  ctx.globalAlpha = 1;
+}
+
+// ============================== COINS, SKINS, ACHIEVEMENTS ==============================
+// Coins: classic level 1 (easy) + 2 (hard), user level 1 (not your own). Each reward is paid once (save.coinLog).
+// Skins are placeholders for now: a name and a colour. Swap in real art later via drawSkinBody().
+const SKINS = [
+  { id: 'default', name: 'Classic', color: '#35e6c8', price: 0 },
+  { id: 'ruby', name: 'Ruby', color: '#ff5470', price: 5 },
+  { id: 'sun', name: 'Sun', color: '#ffd23f', price: 5 },
+  { id: 'violet', name: 'Violet', color: '#b388ff', price: 5 },
+  { id: 'lime', name: 'Lime', color: '#9dff6b', price: 5 },
+  { id: 'sky', name: 'Sky', color: '#4fb8ff', price: 5 },
+  { id: 'ember', name: 'Ember', color: '#ff9a3c', price: 5 },
+  { id: 'snow', name: 'Snow', color: '#f2f0ff', price: 5 },
+  { id: 'rose', name: 'Rose', color: '#ff8ad8', price: 5 },
+];
+const ACHIEVEMENTS = [
+  { id: 'skin', name: 'Dressed Up', desc: 'Unlock a skin in the shop.' },
+  { id: 'hard', name: 'Hard Hitter', desc: 'Beat any level on hard mode.' },
+];
+const ownsSkin = id => save.skins.includes(id);
+function unlockAch(id) {
+  if (save.ach[id]) return;
+  save.ach[id] = Date.now(); store();
+  const a = ACHIEVEMENTS.find(x => x.id === id); if (a) toast('★ Achievement unlocked: ' + a.name);
+}
+function drawCoin(x, y, r) {   // a gold coin centred at x, y
+  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#b8860b'; ctx.lineWidth = Math.max(1, r * 0.22); ctx.beginPath(); ctx.arc(x, y, r * 0.6, 0, 6.29); ctx.stroke();
+}
+function coinCount(xRight, cy) {   // "(coin) 12", right-aligned
+  font(15, true); ctx.textAlign = 'right'; ctx.fillStyle = C.flag; ctx.fillText(String(save.coins), xRight, cy + 5);
+  drawCoin(xRight - ctx.measureText(String(save.coins)).width - 12, cy, 7);
+}
+// a flip cube in the skin's colour (the same shape the game draws), centred at cx, cy
+function drawSkinBody(sk, cx, cy, s) {
+  ctx.fillStyle = sk.color; ctx.fillRect(cx - s * 0.5, cy - s * 0.7, s, s * 1.4);
+  ctx.fillStyle = C.ink; const u = s / 10;
+  ctx.fillRect(cx, cy - 6.4 * u, 2 * u, 3 * u); ctx.fillRect(cx - 4 * u, cy - 6.4 * u, 2 * u, 3 * u); ctx.fillRect(cx - 3 * u, cy + 0.4 * u, 6 * u, 1.5 * u);
+}
+
+function drawShop() {
+  backdrop();
+  const colsN = W > 900 ? 4 : W > 560 ? 3 : 2, gap = 12;
+  const gw = Math.min(W - 32, colsN * 190 + (colsN - 1) * gap), cw = (gw - (colsN - 1) * gap) / colsN, ch = 170;
+  const gx = (W - gw) / 2, top = HEADER + 46, rows = Math.ceil(SKINS.length / colsN);
+  const sc0 = vscroll('shop', top + rows * (ch + gap) + 60);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, HEADER, W, H - HEADER); ctx.clip();
+  font(12); ctx.textAlign = 'center'; ctx.fillStyle = MUTED;
+  ctx.fillText(fitText('Skins cost 5 coins. Earn coins by beating levels: 1 per classic level, 2 more on hard, 1 per user level.', gw), W / 2, HEADER + 28 - sc0);
+  SKINS.forEach((sk, i) => {
+    const x = gx + (i % colsN) * (cw + gap), y = top + Math.floor(i / colsN) * (ch + gap) - sc0;
+    const own = ownsSkin(sk.id), on = save.skin === sk.id, hv = hov(x, y, cw, ch, HEADER);
+    rr(x, y, cw, ch, 10); ctx.fillStyle = hv ? PANEL_HI : PANEL; ctx.fill();
+    ctx.lineWidth = on ? 2.5 : 1.5; ctx.strokeStyle = on ? sk.color : hv ? '#8e9bff' : LINE; ctx.stroke();
+    ctx.globalAlpha = own ? 1 : 0.55; drawSkinBody(sk, x + cw / 2, y + 58, 34); ctx.globalAlpha = 1;
+    font(14, true); ctx.textAlign = 'center'; ctx.fillStyle = C.text; ctx.fillText(sk.name, x + cw / 2, y + 112);
+    const by = y + ch - 40, bw2 = cw - 28, bx = x + 14, sure = isArmed('buy:' + sk.id);
+    rr(bx, by, bw2, 28, 6);
+    if (on) { ctx.fillStyle = sk.color; ctx.fill(); font(12, true); ctx.fillStyle = C.ink; ctx.fillText('equipped', x + cw / 2, by + 18); }
+    else if (own) { ctx.strokeStyle = sk.color; ctx.lineWidth = 1.5; ctx.stroke(); font(12, true); ctx.fillStyle = sk.color; ctx.fillText('equip', x + cw / 2, by + 18); }
+    else {
+      const can = save.coins >= sk.price;
+      ctx.fillStyle = sure ? C.flag : 'transparent'; ctx.fill(); ctx.strokeStyle = can ? C.flag : '#4a4690'; ctx.lineWidth = 1.5; ctx.stroke();
+      font(12, true); ctx.fillStyle = sure ? C.ink : can ? C.flag : '#6f6bb0';
+      if (sure) ctx.fillText('tap to buy', x + cw / 2, by + 18);
+      else { const t = String(sk.price); ctx.fillText(t, x + cw / 2 + 8, by + 18); drawCoin(x + cw / 2 - ctx.measureText(t).width / 2 - 4, by + 14, 6); }
+    }
+    cards.push({ x, y, w: cw, h: ch, minY: HEADER, act: () => shopTap(sk) });
+  });
+  if (save.debug) {
+    const y = top + rows * (ch + gap) - sc0 + 4;
+    button(W / 2 - 80, y, 160, 32, '+5 coins (debug)', { color: C.flag, accent: true, minY: HEADER }, () => { save.coins += 5; store(); });
+  }
+  ctx.restore();
+  header('SKINS');
+  coinCount(W - 18, 32);
+}
+function shopTap(sk) {
+  if (ownsSkin(sk.id)) { save.skin = sk.id; store(); return; }
+  if (save.coins < sk.price) { const n = sk.price - save.coins; toast('you need ' + n + ' more coin' + (n === 1 ? '' : 's')); return; }
+  arm('buy:' + sk.id, () => {
+    save.coins -= sk.price; save.skins.push(sk.id); save.skin = sk.id; store();
+    toast('unlocked ' + sk.name + '!'); unlockAch('skin');
+  });
+}
+
+// achievements list, drawn inside Settings
+function drawAchievements(y, w) {
+  const x = (W - w) / 2, n = ACHIEVEMENTS.filter(a => save.ach[a.id]).length;
+  font(13, true); ctx.textAlign = 'left'; ctx.fillStyle = MUTED; ctx.fillText('ACHIEVEMENTS', x + 4, y + 16);
+  ctx.textAlign = 'right'; ctx.fillText(n + ' / ' + ACHIEVEMENTS.length, x + w - 4, y + 16);
+  y += 30;
+  ACHIEVEMENTS.forEach(a => {
+    const got = !!save.ach[a.id];
+    rr(x, y, w, 62, 10); ctx.fillStyle = PANEL; ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = got ? C.flag : LINE; ctx.stroke();
+    // star badge
+    const cx = x + 32, cy = y + 31;
+    ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 6 : 14, t = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(cx + Math.cos(t) * r, cy + Math.sin(t) * r); }
+    ctx.closePath(); ctx.fillStyle = got ? C.flag : '#3a3670'; ctx.fill();
+    ctx.textAlign = 'left'; font(15, true); ctx.fillStyle = got ? C.text : '#8a86c0'; ctx.fillText(a.name, x + 58, y + 26);
+    font(12); ctx.fillStyle = MUTED; ctx.fillText(fitText(a.desc, w - 170), x + 58, y + 45);
+    ctx.textAlign = 'right'; font(12, true); ctx.fillStyle = got ? C.flag : '#5a5a9a';
+    ctx.fillText(got ? 'unlocked ' + new Date(save.ach[a.id]).toLocaleDateString() : 'locked', x + w - 16, y + 36);
+    y += 70;
+  });
+  return y;
+}
+
+// ============================== ANDROID APP HOOKS ==============================
+// The Android wrapper (MainActivity) calls these. In a browser they are simply unused.
+// roboBack: the system back button. Returns true if the game handled it, false to leave the app.
+window.roboBack = function () {
+  if (!pubModal.hidden) { pubModal.hidden = true; return true; }
+  if (!muModal.hidden) { closeMusicPanel(); return true; }
+  if (!edModal.hidden) { edModal.hidden = true; return true; }
+  if (guideMode === 'modal') { setGuide('off'); return true; }
+  if (state === 'editor') { closeEditor(); return true; }   // like "done" (asks again if there are unsaved changes)
+  if (state === 'play' || state === 'dead' || state === 'win') { goBack(); return true; }
+  if (state === 'home') return false;
+  state = state === 'online' || state === 'menu' ? 'playmenu' : 'home';
+  return true;
+};
+// roboPause: the app went to the background. Stop the music, drop any held input, and give a moment to get ready on return.
+window.roboPause = function () {
+  down = false; pressQueued = false; musicPause();
+  if (state === 'play') grace = Math.max(grace, CONFIG.respawnFreeze);
+};
+document.addEventListener('visibilitychange', () => { if (document.hidden) window.roboPause(); });
+
+let last = performance.now();
+(function loop(now) {
+  const fdt = Math.min(0.1, (now - last) / 1000); last = now;
+  update(fdt); draw(); drawToast(fdt); rotateHint(); requestAnimationFrame(loop);
+})(last);
+</script>
+</body>
+</html>
