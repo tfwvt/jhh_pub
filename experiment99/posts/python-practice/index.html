@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A small Python program that asks how your day is going, answers you, and solves a math problem you type in.">
+  <title>Python Practice: a script that talks back · Jhhwoob</title>
+  <link rel="stylesheet" href="../../css/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="../../">Jhhwoob</a>
+      <nav aria-label="Primary">
+        <ul>
+          <li><a href="../../">Blog</a></li>
+          <li><a href="../../about/">About</a></li>
+          <li><a href="https://github.com/Jhhwoob">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <article class="post">
+      <span class="meta"><time datetime="2026-02-20">February 20, 2026</time><span class="tag">Python</span></span>
+      <h1>Python Practice: a script that talks back</h1>
+
+      <p>
+        <a href="https://github.com/Jhhwoob/Python-Practice">Python-Practice</a> holds one program,
+        <code>script.py</code>. You run it in a terminal and it has a short conversation with you.
+      </p>
+
+      <h2>What it does</h2>
+      <ul>
+        <li>It asks <em>"Are you having a good day?"</em> and answers "yes" with "Thats nice!" and "no" with "Im sorry about that".</li>
+        <li>It asks whether you had a good day yesterday, and replies differently to each answer.</li>
+        <li>If you did, it offers to do your math homework. Turn it down and it teases you for doing math the slow way.</li>
+        <li>Then it asks for a simple equation, like <code>5+5</code>, and prints the result.</li>
+      </ul>
+
+      <h2>How it works</h2>
+      <p>
+        Every question uses <code>input()</code>, which waits for you to type something and press Enter.
+        The answer is stored in a variable, and <code>if</code> statements check it against "yes" or "no" to
+        pick the reply.
+      </p>
+      <p>The math part is the most interesting piece:</p>
+<pre><code>user_input = input("enter a simple math equation like 5+5 ")
+
+try:
+    result = eval(user_input)
+    print("The result is:", result)
+except (SyntaxError, NameError, ZeroDivisionError) as e:
+    print("Error in the expression:", e)</code></pre>
+      <p>
+        <code>eval()</code> treats whatever you typed as Python and works it out, so <code>5+5</code> becomes
+        <code>10</code>. The <code>try</code>/<code>except</code> block catches the three ways that can go wrong:
+        typing something that isn't a valid expression, using a name Python doesn't know, or dividing by zero.
+        Instead of crashing, the program prints the error and finishes.
+      </p>
+
+      <h2>What it practices</h2>
+      <ul>
+        <li>Reading input from the user</li>
+        <li>Branching with <code>if</code> and <code>else</code></li>
+        <li>Handling errors with <code>try</code> and <code>except</code></li>
+      </ul>
+
+      <p class="callout">
+        The code is on GitHub:
+        <a href="https://github.com/Jhhwoob/Python-Practice/blob/main/script.py">Jhhwoob/Python-Practice</a>.
+      </p>
+
+      <p class="back"><a href="../../">&larr; All posts</a></p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Jhhwoob &middot; Code on <a href="https://github.com/Jhhwoob">GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>
